@@ -29,7 +29,6 @@ university webpage:
   - Memory is now byte-addressable.
   - `LD`, `ST` instructions (data storage using PC-relative addressing) have
     been removed.
-  - `LDI`, `STI` instructions now use register-based addressing.
   - `LDB`, `STB` instructions have been added to manipulate individual bytes of
     memory.
   - `LDR`, `STR` instructions have been renamed to `LDW`, `STW` to indicate that
