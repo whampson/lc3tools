@@ -34,8 +34,9 @@
  *             that the instructions manipulate words of memory.
  *           - SHF instruction has been added to allow for arithmetic and
  *             logical shifts.
- *           - Bitwise NOT ALU operation has been replaced with bitwise XOR. The
- *             instruction encoding for NOT remains unchanged.
+ *           - `XOR` instruction has been added and bitwise NOT ALU operation
+ *             has been replaced with bitwise XOR. The instruction encoding for
+ *             `NOT` remains unchanged.
  *============================================================================*/
 
 
