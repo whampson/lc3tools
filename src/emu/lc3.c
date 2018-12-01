@@ -27,7 +27,6 @@
  *           - Memory is now byte-addressable.
  *           - LD, ST instructions (data storage using PC-relative addressing)
  *             have been removed.
- *           - LDI, STI instructions now use register-based addressing.
  *           - LDB, STB instructions have been added to manipulate individual
  *             bytes of memory.
  *           - LDR, STR instructions have been renamed to LDW, STW to indicate
@@ -40,6 +39,16 @@
  *============================================================================*/
 
 
+/*
+ * TODO:
+ *   - Finish instructions
+ *   - Interrupt/exception handling
+ *     - Illegal Opcode
+ *     - Illegal Operand
+ *     - (...)
+ *   - Memory-mapped I/O
+ */
+
 
 #include <stdio.h>
 #include <lc3.h>
@@ -51,7 +60,7 @@
  */
 #define OPCODE()    ((cpu.ir & 0xF000) >> 12)
 #define DR()        ((cpu.ir & 0x0E00) >> 9)
-#define SR()        ((cpu.ir & 0x01C0) >> 6)
+#define SR()        ((cpu.ir & 0x0E00) >> 9)
 #define SR1()       ((cpu.ir & 0x01C0) >> 6)
 #define SR2()       (cpu.ir & 0x0007)
 #define BASER()     ((cpu.ir & 0x01C0) >> 6)
@@ -97,7 +106,8 @@ static void exec_ldw(void);
 static void exec_stw(void);
 static void exec_rti(void);
 static void exec_xor(void);
-static void exec_ill(void);
+static void exec_ldi(void);
+static void exec_sti(void);
 static void exec_jmp(void);
 static void exec_shf(void);
 static void exec_lea(void);
@@ -114,6 +124,9 @@ static inline lc3byte mem_rb(lc3word addr);
 static inline void mem_w(lc3word addr, lc3word data);
 static inline void mem_wb(lc3word addr, lc3byte data);
 
+static inline void stack_push(lc3word data);
+static inline lc3word stack_pop(void);
+
 static inline lc3sword sign_extend(lc3word val, int pos);
 
 /*
@@ -122,7 +135,7 @@ static inline lc3sword sign_extend(lc3word val, int pos);
 static exec_op exec_table[NUM_OPS] = {
     exec_br,    exec_add,   exec_ldb,   exec_stb,
     exec_jsr,   exec_and,   exec_ldw,   exec_stw,
-    exec_rti,   exec_xor,   exec_ill,   exec_ill,
+    exec_rti,   exec_xor,   exec_ldi,   exec_sti,
     exec_jmp,   exec_shf,   exec_lea,   exec_trap
 };
 
@@ -186,13 +199,11 @@ void lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes)
  * Begin executing instructions at the specified address.
  * (TODO: when does it halt?)
  */
-void lc3_execute(lc3word addr)
+void lc3_execute(lc3word addr, int ninstr)
 {
-    int ncycles;
-
-    ncycles = 50;
-    while (ncycles-- > 0) {
+    while (ninstr-- > 0) {
         /* Fetch */
+        printf("%04x: ", cpu.pc);
         cpu.ir = mem_r(cpu.pc);
         cpu.pc += 2;
 
@@ -243,7 +254,7 @@ static void exec_br(void)
     if (IR_N()) printf("n");
     if (IR_Z()) printf("z");
     if (IR_P()) printf("p");
-    printf("\t#%d\n", pcoffset);
+    printf("\t#%d\n", (pcoffset << 1));
 }
 
 /*
@@ -276,7 +287,15 @@ void exec_add(void)
  */
 static void exec_ldb(void)
 {
-    printf("LDB\tR%d, R%d, #%d\n", DR(), BASER(), OFF6());
+    lc3word addr;
+    lc3word data;
+
+    addr = reg_r(BASER()) + sign_extend(OFF6(), 6);
+    data = sign_extend(mem_rb(addr), 8);
+    reg_w(DR(), data);
+    setcc();
+
+    printf("LDB\tR%d, R%d, #%d\n", DR(), BASER(), sign_extend(OFF6(), 6));
 }
 
 /*
@@ -285,7 +304,14 @@ static void exec_ldb(void)
  */
 static void exec_stb(void)
 {
-    printf("STB\tR%d, R%d, #%d\n", SR(), BASER(), OFF6());
+    lc3word addr;
+    lc3byte data;
+
+    addr = reg_r(BASER()) + sign_extend(OFF6(), 6);
+    data = reg_r(SR()) & 0xFF;
+    mem_wb(DR(), data);
+
+    printf("STB\tR%d, R%d, #%d\n", SR(), BASER(), sign_extend(OFF6(), 6));
 }
 
 /*
@@ -294,9 +320,16 @@ static void exec_stb(void)
  */
 static void exec_jsr(void)
 {
+    /* TODO: if A_JSR() == 0 and BASER() is odd, throw illegal operand exception */
+
+    reg_w(7, cpu.pc);
+    cpu.pc = (A_JSR())
+        ? (cpu.pc + (sign_extend(OFF11(), 11) << 1))
+        : reg_r(BASER());
+
     printf("JSR");
     if (A_JSR()) {
-        printf("\t#%d\n", OFF11());
+        printf("\t#%d\n", sign_extend(OFF11(), 11));
     }
     else {
         printf("R\tR%d\n", BASER());
@@ -304,7 +337,7 @@ static void exec_jsr(void)
 }
 
 /*
- * AND: Bitwise and
+ * AND: Bitwise AND
  * Opcode 0101
  */
 static void exec_and(void)
@@ -333,7 +366,15 @@ static void exec_and(void)
  */
 static void exec_ldw(void)
 {
-    printf("LDW\tR%d, R%d, #%d\n", SR(), BASER(), OFF6());
+    lc3word addr;
+    lc3word data;
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    data = mem_r(addr);
+    reg_w(DR(), data);
+    setcc();
+
+    printf("LDW\tR%d, R%d, #%d\n", DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
 }
 
 /*
@@ -342,7 +383,14 @@ static void exec_ldw(void)
  */
 static void exec_stw(void)
 {
-    printf("STW\tR%d, R%d, #%d\n", SR(), BASER(), OFF6());
+    lc3word addr;
+    lc3word data;
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    data = reg_r(SR());
+    mem_w(addr, data);
+
+    printf("STW\tR%d, R%d, #%d\n", SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
 }
 
 /*
@@ -353,16 +401,21 @@ static void exec_stw(void)
  */
 static void exec_rti(void)
 {
+    /* TODO: privilege mode exception */
+
     if (PRIVILEGE() == PRIV_USER) {
         printf("Privilege mode violation!\n");
+        return;
     }
-    else {
-        printf("RTI\n");
-    }
+
+    cpu.pc = stack_pop();
+    cpu.psr.value = stack_pop();
+
+    printf("RTI\n");
 }
 
 /*
- * XOR: Bitwise exclusive or
+ * XOR: Bitwise exclusive OR
  * Opcode 1101
  */
 static void exec_xor(void)
@@ -386,13 +439,36 @@ static void exec_xor(void)
 }
 
 /*
- * Illegal opcode detected. Triggers an illegal opcode exception.
- * Opcodes 1010 and 1011.
+ * LDI: Load word, indirect addressing
+ * Opcode 1010
  */
-static void exec_ill(void)
+static void exec_ldi(void)
 {
-    /* TODO: raise illegal opcode exception */
-    printf("Illegal opcode! (0x%X)\n", OPCODE());
+    lc3word addr;
+    lc3word data;
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    data = mem_r(mem_r(addr));
+    reg_w(DR(), data);
+    setcc();
+
+    printf("LDI\tR%d, R%d, #%d\n", DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+}
+
+/*
+ * STI: Store word, indirect addressing
+ * Opcode 1011
+ */
+static void exec_sti(void)
+{
+    lc3word addr;
+    lc3word data;
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    data = reg_r(SR());
+    mem_w(mem_r(addr), data);
+
+    printf("STI\tR%d, R%d, #%d\n", SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
 }
 
 /*
@@ -401,6 +477,8 @@ static void exec_ill(void)
  */
 static void exec_jmp(void)
 {
+    cpu.pc = reg_r(BASER());
+
     printf("JMP\tR%d\n", BASER());
 }
 
@@ -450,7 +528,13 @@ static void exec_shf(void)
  */
 static void exec_lea(void)
 {
-    printf("LEA\tR%d, #%d\n", DR(), OFF9());
+    lc3word addr;
+
+    addr = cpu.pc + (sign_extend(OFF9(), 9) << 1);
+    reg_w(DR(), addr);
+    setcc();
+
+    printf("LEA\tR%d, #%d\n", DR(), sign_extend(OFF9(), 9));
 }
 
 /*
@@ -459,6 +543,9 @@ static void exec_lea(void)
  */
 static void exec_trap(void)
 {
+    reg_w(7, cpu.pc);
+    cpu.pc = mem_r(TRAPVECT() << 1);
+
     printf("TRAP\t#%d\n", TRAPVECT());
 }
 
@@ -533,6 +620,28 @@ static inline void mem_wb(lc3word addr, lc3byte data)
     cpu.mar = addr;
     cpu.mdr = (cpu.mar & 0x0001) ? data << 8 : data;
     cpu.m[cpu.mar] = data;
+}
+
+static inline void stack_push(lc3word data)
+{
+    lc3word sp;
+
+    sp = reg_r(6);
+    sp -= 2;
+    mem_w(sp, data);
+}
+
+static inline lc3word stack_pop(void)
+{
+    lc3word sp;
+    lc3word data;
+
+    sp = reg_r(6);
+    data = mem_r(sp);
+    sp += 2;
+
+    return data;
+
 }
 
 /*
