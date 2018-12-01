@@ -96,8 +96,8 @@ enum lc3op {
     OP_STW,     /* store word */
     OP_RTI,     /* return from interrupt (requires supervisor) */
     OP_XOR,     /* bitwise XOR */
-    OP_UNUSED1, /* (unused, causes invalid opcode exception) */
-    OP_UNUSED2, /* (unused, causes invalid opcode exception) */
+    OP_LDI,     /* load word, indirect addresing */
+    OP_STI,     /* store word, indirect addressing */
     OP_JMP,     /* unconditional branch (register-absolute) */
     OP_SHF,     /* bitwise shift */
     OP_LEA,     /* load effective address */
@@ -126,7 +126,7 @@ void lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes);
  * Begin executing instructions at the specified address.
  * (TODO: when does it halt?)
  */
-void lc3_execute(lc3word addr);
+void lc3_execute(lc3word addr, int ninstr);
 
 /*
  * Print all registers to STDOUT.
