@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <lc3tools.h>
 #include <lc3.h>
 
 /**
@@ -38,51 +39,42 @@ static void usage(const char *prog_name);
 
 int main(int argc, char *argv[])
 {
-    // FILE *f;
+    FILE *f;
+    lc3word origin;
+    lc3word len;
+    lc3word *prog;
+    int i;
 
-    // if (argc < 2) {
-    //     usage(get_filename(argv[0]));
-    //     return 1;
-    // }
+    if (argc < 2) {
+        usage(get_filename(argv[0]));
+        return 1;
+    }
 
     /* TODO: argument parsing */
 
-    lc3word data[64];
-    lc3word buf[64];
-    int i;
+    f = fopen(argv[1], "rb");
+
+    fread(&origin, 2, 1, f);
+    fseek(f, 0x08, SEEK_SET);
+    fread(&len, 2, 1, f);
+    fseek(f, 0x10, SEEK_SET);
+
+    printf("Origin: 0x%04x\n", origin);
+    printf("Length: 0x%04x\n", len);
+
+    prog = (lc3word *) malloc(len);
+
+    /* TODO: check length */
+    fread(prog, 2, len, f);
 
     lc3_reset();
-    memset(data, 0, 64);
-    memset(buf, 0, 64);
-
-    data[0] = 0x0AAA;
-    data[1] = 0x1AAA;
-    data[2] = 0x2AAA;
-    data[3] = 0x3AAA;
-    data[4] = 0x4AAA;
-    data[5] = 0x5AAA;
-    data[6] = 0x6AAA;
-    data[7] = 0x7AAA;
-    data[8] = 0x8AAA;
-    data[9] = 0x9AAA;
-    data[10] = 0xAAAA;
-    data[11] = 0xBAAA;
-    data[12] = 0xCAAA;
-    data[13] = 0xDAAA;
-    data[14] = 0xEAAA;
-    data[15] = 0xFAAA;
-    data[16] = 0x0FFF;
-    lc3_writemem(0, (lc3byte *) data, sizeof(data) << 1);
-    lc3_execute(0);
-
-    // lc3_readmem((lc3byte *) buf, 0, 6);
-
-    // for (i = 0; i < 3; i++) {
-    //     printf("%04x: 0x%04x\n", i * 2, buf[i]);
-    // }
+    lc3_writemem(origin, (lc3byte *) prog, len);
+    lc3_execute(origin, 64);
 
     lc3_printregs();
 
+    free(prog);
+    fclose(f);
     return 0;
 }
 
