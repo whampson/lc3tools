@@ -20,9 +20,11 @@
  *============================================================================*/
 
 #include <string.h>
-
 #include <lc3tools.h>
 
+/*
+ * Retrieve the file name from a file path string.
+ */
 char * get_filename(char *path)
 {
     char *file;
