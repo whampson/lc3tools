@@ -41,16 +41,17 @@
 
 /*
  * TODO:
- *   - Finish instructions
  *   - Interrupt/exception handling
  *     - Illegal Opcode
  *     - Illegal Operand
+ *     - Privilege Violation
  *     - (...)
- *   - Memory-mapped I/O
+ *   - TEST, TEST, TEST!
  */
 
 
 #include <stdio.h>
+#include <lc3tools.h>
 #include <lc3.h>
 
 /* ===== USEFUL MACROS ===== */
@@ -58,34 +59,54 @@
 /*
  * Instruction Register fields.
  */
-#define OPCODE()    ((cpu.ir & 0xF000) >> 12)
-#define DR()        ((cpu.ir & 0x0E00) >> 9)
-#define SR()        ((cpu.ir & 0x0E00) >> 9)
-#define SR1()       ((cpu.ir & 0x01C0) >> 6)
-#define SR2()       (cpu.ir & 0x0007)
-#define BASER()     ((cpu.ir & 0x01C0) >> 6)
-#define IMM4()      (cpu.ir & 0x000F)
-#define IMM5()      (cpu.ir & 0x001F)
-#define OFF6()      (cpu.ir & 0x003F)
-#define OFF9()      (cpu.ir & 0x01FF)
-#define OFF11()     (cpu.ir & 0x07FF)
-#define TRAPVECT()  (cpu.ir & 0x00FF)
-#define IR_N()      (cpu.ir & 0x0800)
-#define IR_Z()      (cpu.ir & 0x0400)
-#define IR_P()      (cpu.ir & 0x0200)
-#define A()         (cpu.ir & 0x0020)   /* ALU operation (ADD/AND/XOR) */
-#define A_JSR()     (cpu.ir & 0x0800)   /* ALU operation (JSR) */
-#define D()         (cpu.ir & 0x0010)   /* direction (SHF) */
+#define OPCODE()        ((cpu.ir & 0xF000) >> 12)
+#define DR()            ((cpu.ir & 0x0E00) >> 9)
+#define SR()            ((cpu.ir & 0x0E00) >> 9)
+#define SR1()           ((cpu.ir & 0x01C0) >> 6)
+#define SR2()           (cpu.ir & 0x0007)
+#define BASER()         ((cpu.ir & 0x01C0) >> 6)
+#define IMM4()          (cpu.ir & 0x000F)
+#define IMM5()          (cpu.ir & 0x001F)
+#define OFF6()          (cpu.ir & 0x003F)
+#define OFF9()          (cpu.ir & 0x01FF)
+#define OFF11()         (cpu.ir & 0x07FF)
+#define TRAPVECT()      (cpu.ir & 0x00FF)
+#define IR_N()          (cpu.ir & 0x0800)
+#define IR_Z()          (cpu.ir & 0x0400)
+#define IR_P()          (cpu.ir & 0x0200)
+#define A()             (cpu.ir & 0x0020)   /* ALU operation (ADD/AND/XOR) */
+#define A_JSR()         (cpu.ir & 0x0800)   /* ALU operation (JSR) */
+#define D()             (cpu.ir & 0x0010)   /* direction (SHF) */
 
 /*
  * Processor State Register fields.
  */
-#define PRIORITY()  (cpu.psr.priority)
-#define PRIVILEGE() (cpu.psr.privilege)
-#define N()         (cpu.psr.n)
-#define Z()         (cpu.psr.z)
-#define P()         (cpu.psr.p)
+#define PRIORITY()      (cpu.psr.priority)
+#define PRIVILEGE()     (cpu.psr.privilege)
+#define N()             (cpu.psr.n)
+#define Z()             (cpu.psr.z)
+#define P()             (cpu.psr.p)
 
+#define SET_PRIORITY(x) (cpu.psr.priority = x)
+#define SET_PRIVILEGE(x)(cpu.psr.privilege = x)
+#define SET_N(x)        (cpu.psr.n = x)
+#define SET_Z(x)        (cpu.psr.z = x)
+#define SET_P(x)        (cpu.psr.p = x)
+
+/*
+ * Memory-mapped I/O registers.
+ */
+#define KBSR()          (mem_r(A_KBSR))
+#define KBDR()          (mem_r(A_KBDR))
+#define DSR()           (mem_r(A_DSR))
+#define DDR()           (mem_r(A_DDR))
+#define MCR()           (mem_r(A_MCR))
+
+#define SET_KBSR(x)     (mem_w(A_KBSR, x))
+#define SET_KBDR(x)     (mem_w(A_KBDR, x))
+#define SET_DSR(x)      (mem_w(A_DSR,  x))
+#define SET_DDR(x)      (mem_w(A_DDR,  x))
+#define SET_MCR(x)      (mem_w(A_MCR,  x))
 
 /*
  * LC-3 instruction function pointer type.
@@ -142,20 +163,21 @@ static exec_op exec_table[NUM_OPS] = {
 /*
  * The CPU state.
  */
-static lc3cpu cpu;
+static struct lc3cpu cpu;
 
 
 /* ===== PUBLIC FUNCTION DEFINITIONS ===== */
 
 /*
- * Reset the CPU. Memory is not modified.
+ * Reset all registers to zero.
+ * Memory outside the memory-mapped I/O region is not modified.
  */
 void lc3_reset(void)
 {
     int i;
 
     for (i = 0; i < GPREGS; i++) reg_w(i, 0);
-    cpu.pc = 0; /* TODO: reset vector */
+    cpu.pc = 0;
     cpu.ir = 0;
     cpu.mar = 0;
     cpu.mdr = 0;
@@ -164,53 +186,140 @@ void lc3_reset(void)
     cpu.intf = 0;
     cpu.intv = 0;
     cpu.psr.value = 0;
+    SET_KBSR(0);
+    SET_KBDR(0);
+    SET_DSR(0);
+    SET_DDR(0);
+    SET_MCR(0);
     setcc();
+}
+
+/*
+ * Read a register value.
+ */
+int lc3_readreg(int reg, lc3word *data)
+{
+    if (data == NULL || reg < 0 || reg >= NUM_REGS) {
+        return -1;
+    }
+
+    if (reg >= R_0 && reg <= R_7) {
+        *data = reg_r(reg);
+        return 0;
+    }
+
+    switch (reg) {
+        case R_PC:      *data = cpu.pc;         break;
+        case R_IR:      *data = cpu.ir;         break;
+        case R_MAR:     *data = cpu.mar;        break;
+        case R_MDR:     *data = cpu.mdr;        break;
+        case R_SSP:     *data = cpu.saved_ssp;  break;
+        case R_USP:     *data = cpu.saved_usp;  break;
+        case R_PSR:     *data = cpu.psr.value;  break;
+        case R_KBSR:    *data = KBSR();         break;
+        case R_KBDR:    *data = KBDR();         break;
+        case R_DSR:     *data = DSR();          break;
+        case R_DDR:     *data = DDR();          break;
+        case R_MCR:     *data = MCR();          break;
+    }
+
+    return 0;
+}
+
+/*
+ * Set a register value.
+ */
+int lc3_writereg(int reg, lc3word data)
+{
+    if (reg < 0 || reg >= NUM_REGS) {
+        return -1;
+    }
+
+    if (reg >= R_0 && reg <= R_7) {
+        reg_w(reg, data);
+        return 0;
+    }
+
+    switch (reg) {
+        case R_PC:      cpu.pc = data;          break;
+        case R_IR:      cpu.ir = data;          break;
+        case R_MAR:     cpu.mar = data;         break;
+        case R_MDR:     cpu.mdr = data;         break;
+        case R_SSP:     cpu.saved_ssp = data;   break;
+        case R_USP:     cpu.saved_usp = data;   break;
+        case R_PSR:     cpu.psr.value = data;   break;
+        case R_KBSR:    SET_KBSR(data);         break;
+        case R_KBDR:    SET_KBDR(data);         break;
+        case R_DSR:     SET_DSR(data);          break;
+        case R_DDR:     SET_DDR(data);          break;
+        case R_MCR:     SET_MCR(data);          break;
+    }
+
+    return 0;
 }
 
 /*
  * Read an array of bytes from main memory.
  */
-void lc3_readmem(lc3byte *data, lc3word addr, size_t nbytes)
+int lc3_readmem(lc3byte *data, lc3word addr, size_t n)
 {
-    /* TODO: arg check */
-
     int i;
 
-    for (i = 0; i < nbytes; i++) {
+    if (data == NULL || n > MEMSIZE) {
+        return -1;
+    }
+
+    for (i = 0; i < n; i++) {
         data[i] = mem_rb(addr + i);
     }
+
+    return 0;
 }
 
 /*
  * Write an array of bytes into main memory.
  */
-void lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes)
+int lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes)
 {
-    /* TODO: arg check */
-
     int i;
+
+    if (data == NULL || nbytes > MEMSIZE) {
+        return -1;
+    }
 
     for (i = 0; i < nbytes; i++) {
         mem_wb(addr + i, data[i]);
     }
+
+    return 0;
 }
 
 /*
- * Begin executing instructions at the specified address.
- * (TODO: when does it halt?)
+ * Execute exactly one instruction cycle.
+ * The ability to step is not dependent on the state of the clock enable bit
+ * in MCR.
  */
-void lc3_execute(lc3word addr, int ninstr)
+void lc3_step(void)
 {
-    while (ninstr-- > 0) {
-        /* Fetch */
-        printf("%04x: ", cpu.pc);
-        cpu.ir = mem_r(cpu.pc);
-        cpu.pc += 2;
+    #ifdef DEBUG
+    printf("%04x: ", cpu.pc);
+    #endif
 
-        /* Decode */
-        exec_table[OPCODE()]();
+    cpu.ir = mem_r(cpu.pc);
+    cpu.pc += 2;
 
-        /* TODO: interrupts, halt check, etc. */
+    /* TODO: check interrupts */
+
+    exec_table[OPCODE()]();
+}
+
+/*
+ * Execute instructions for as long as the clock enable bit in MCR is high.
+ */
+void lc3_run(void)
+{
+    while ((MCR() & CLOCK_ENABLE) == CLOCK_ENABLE) {
+        lc3_step();
     }
 }
 
@@ -220,9 +329,9 @@ void lc3_execute(lc3word addr, int ninstr)
 void lc3_printregs(void)
 {
     printf("R0   = 0x%04x\tR1   = 0x%04x\tR2   = 0x%04x\tR3   = 0x%04x\n",
-        reg_r(0), reg_r(1), reg_r(2), reg_r(3));
+        reg_r(R_0), reg_r(R_1), reg_r(R_2), reg_r(R_3));
     printf("R4   = 0x%04x\tR5   = 0x%04x\tR6   = 0x%04x\tR7   = 0x%04x\n",
-        reg_r(4), reg_r(5), reg_r(6), reg_r(7));
+        reg_r(R_4), reg_r(R_5), reg_r(R_6), reg_r(R_7));
     printf("PC   = 0x%04x\tIR   = 0x%04x\tMAR  = 0x%04x\tMDR  = 0x%04x\n",
         cpu.pc, cpu.ir, cpu.mar, cpu.mdr);
     printf("SSP  = 0x%04x\tUSP  = 0x%04x\tINTV = 0x%02x\tINTF = %d\n",
@@ -231,11 +340,13 @@ void lc3_printregs(void)
     printf("Privilege = %d, ", PRIVILEGE());
     printf("Priority = %d, ", PRIORITY());
     printf("N = %d, Z = %d, P = %d ]\n", N(), Z(), P());
-
-    /* TODO: memory-mapped registers */
+    printf("KBSR = 0x%04x\tKBDR = 0x%04x\tDSR  = 0x%04x\rDDR  = 0x%04x\n",
+        KBSR(), KBDR(), DSR(), DDR());
+    printf("MCR  = 0x%04x\n", MCR());
 }
 
-/* ===== PRIVATE FUNCTION DEFINITIONS ===== */
+
+/* ===== CPU INSTRUCTIONS ===== */
 
 /*
  * BR: Conditional Branch
@@ -250,11 +361,13 @@ static void exec_br(void)
         cpu.pc += (pcoffset << 1);
     }
 
+    #ifdef DEBUG
     printf("BR");
     if (IR_N()) printf("n");
     if (IR_Z()) printf("z");
     if (IR_P()) printf("p");
     printf("\t#%d\n", (pcoffset << 1));
+    #endif
 }
 
 /*
@@ -274,11 +387,13 @@ void exec_add(void)
     reg_w(DR(), result);
     setcc();
 
+    #ifdef DEBUG
     printf("ADD\tR%d, R%d, ", DR(), SR1());
     if (A())
         printf("#%d\n", sign_extend(IMM5(), 5));
     else
         printf("R%d\n", SR2());
+    #endif
 }
 
 /*
@@ -295,7 +410,9 @@ static void exec_ldb(void)
     reg_w(DR(), data);
     setcc();
 
+    #ifdef DEBUG
     printf("LDB\tR%d, R%d, #%d\n", DR(), BASER(), sign_extend(OFF6(), 6));
+    #endif
 }
 
 /*
@@ -311,7 +428,9 @@ static void exec_stb(void)
     data = reg_r(SR()) & 0xFF;
     mem_wb(DR(), data);
 
+    #ifdef DEBUG
     printf("STB\tR%d, R%d, #%d\n", SR(), BASER(), sign_extend(OFF6(), 6));
+    #endif
 }
 
 /*
@@ -322,11 +441,12 @@ static void exec_jsr(void)
 {
     /* TODO: if A_JSR() == 0 and BASER() is odd, throw illegal operand exception */
 
-    reg_w(7, cpu.pc);
+    reg_w(R_7, cpu.pc);
     cpu.pc = (A_JSR())
         ? (cpu.pc + (sign_extend(OFF11(), 11) << 1))
         : reg_r(BASER());
 
+    #ifdef DEBUG
     printf("JSR");
     if (A_JSR()) {
         printf("\t#%d\n", sign_extend(OFF11(), 11));
@@ -334,6 +454,7 @@ static void exec_jsr(void)
     else {
         printf("R\tR%d\n", BASER());
     }
+    #endif
 }
 
 /*
@@ -353,11 +474,13 @@ static void exec_and(void)
     reg_w(DR(), result);
     setcc();
 
+    #ifdef DEBUG
     printf("AND\tR%d, R%d, ", DR(), SR1());
     if (A())
         printf("#%d\n", sign_extend(IMM5(), 5));
     else
         printf("R%d\n", SR2());
+    #endif
 }
 
 /*
@@ -374,7 +497,10 @@ static void exec_ldw(void)
     reg_w(DR(), data);
     setcc();
 
-    printf("LDW\tR%d, R%d, #%d\n", DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #ifdef DEBUG
+    printf("LDW\tR%d, R%d, #%d\n",
+        DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #endif
 }
 
 /*
@@ -390,7 +516,10 @@ static void exec_stw(void)
     data = reg_r(SR());
     mem_w(addr, data);
 
-    printf("STW\tR%d, R%d, #%d\n", SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #ifdef DEBUG
+    printf("STW\tR%d, R%d, #%d\n",
+        SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #endif
 }
 
 /*
@@ -411,7 +540,9 @@ static void exec_rti(void)
     cpu.pc = stack_pop();
     cpu.psr.value = stack_pop();
 
+    #ifdef DEBUG
     printf("RTI\n");
+    #endif
 }
 
 /*
@@ -431,11 +562,13 @@ static void exec_xor(void)
     reg_w(DR(), result);
     setcc();
 
+    #ifdef DEBUG
     printf("XOR\tR%d, R%d, ", DR(), SR1());
     if (A())
         printf("#%d\n", sign_extend(IMM5(), 5));
     else
         printf("R%d\n", SR2());
+    #endif
 }
 
 /*
@@ -452,7 +585,10 @@ static void exec_ldi(void)
     reg_w(DR(), data);
     setcc();
 
-    printf("LDI\tR%d, R%d, #%d\n", DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #ifdef DEBUG
+    printf("LDI\tR%d, R%d, #%d\n",
+        DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #endif
 }
 
 /*
@@ -468,7 +604,10 @@ static void exec_sti(void)
     data = reg_r(SR());
     mem_w(mem_r(addr), data);
 
-    printf("STI\tR%d, R%d, #%d\n", SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #ifdef DEBUG
+    printf("STI\tR%d, R%d, #%d\n",
+        SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
+    #endif
 }
 
 /*
@@ -479,7 +618,9 @@ static void exec_jmp(void)
 {
     cpu.pc = reg_r(BASER());
 
+    #ifdef DEBUG
     printf("JMP\tR%d\n", BASER());
+    #endif
 }
 
 /*
@@ -509,6 +650,7 @@ static void exec_shf(void)
     reg_w(DR(), result);
     setcc();
 
+    #ifdef DEBUG
     if (D()) {
         printf("RSHF");
         if (A())
@@ -520,6 +662,7 @@ static void exec_shf(void)
         printf("LSHF");
     printf("\tR%d, R%d, ", DR(), SR1());
     printf("#%d\n", IMM4());
+    #endif
 }
 
 /*
@@ -534,7 +677,9 @@ static void exec_lea(void)
     reg_w(DR(), addr);
     setcc();
 
+    #ifdef DEBUG
     printf("LEA\tR%d, #%d\n", DR(), sign_extend(OFF9(), 9));
+    #endif
 }
 
 /*
@@ -543,11 +688,16 @@ static void exec_lea(void)
  */
 static void exec_trap(void)
 {
-    reg_w(7, cpu.pc);
+    reg_w(R_7, cpu.pc);
     cpu.pc = mem_r(TRAPVECT() << 1);
 
+    #ifdef DEBUG
     printf("TRAP\t#%d\n", TRAPVECT());
+    #endif
 }
+
+
+/* ===== HELPER FUNCTIONS ===== */
 
 /*
  * Update the CPU's condition codes based on the value in the destination
@@ -558,9 +708,9 @@ static inline void setcc(void)
     lc3word val;
 
     val = reg_r(DR());
-    cpu.psr.n = (val & 0x8000) == 0x8000;
-    cpu.psr.z = val == 0;
-    cpu.psr.p = !(cpu.psr.n || cpu.psr.z);
+    SET_N((val & 0x8000) == 0x8000);
+    SET_Z(val == 0);
+    SET_P(!(cpu.psr.n || cpu.psr.z));
 }
 
 /*
@@ -587,6 +737,7 @@ static inline lc3word mem_r(lc3word addr)
 {
     cpu.mar = addr;
     cpu.mdr = (cpu.m[(cpu.mar & 0xFFFE) + 1] << 8) | cpu.m[cpu.mar & 0xFFFE];
+
     return cpu.mdr;
 }
 
@@ -608,6 +759,7 @@ static inline void mem_w(lc3word addr, lc3word data)
 {
     cpu.mar = addr;
     cpu.mdr = data;
+
     cpu.m[(cpu.mar & 0xFFFE) + 1] = (cpu.mdr >> 8) & 0xFF;
     cpu.m[cpu.mar & 0xFFFE] = cpu.mdr & 0xFF;
 }
@@ -622,26 +774,33 @@ static inline void mem_wb(lc3word addr, lc3byte data)
     cpu.m[cpu.mar] = data;
 }
 
+/*
+ * Push a value onto the stack.
+ * The stack pointer is stored in R6.
+ */
 static inline void stack_push(lc3word data)
 {
     lc3word sp;
 
-    sp = reg_r(6);
+    sp = reg_r(R_6);
     sp -= 2;
     mem_w(sp, data);
 }
 
+/*
+ * Pop a value from the stack.
+ * The stack pointer is stored in R6.
+ */
 static inline lc3word stack_pop(void)
 {
     lc3word sp;
     lc3word data;
 
-    sp = reg_r(6);
+    sp = reg_r(R_6);
     data = mem_r(sp);
     sp += 2;
 
     return data;
-
 }
 
 /*
