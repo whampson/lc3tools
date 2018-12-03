@@ -50,9 +50,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* TODO: argument parsing */
-
     f = fopen(argv[1], "rb");
+    if (f == NULL) {
+        fprintf(stderr, "Error: could not open file.\n");
+        return 1;
+    }
 
     fread(&origin, 2, 1, f);
     fseek(f, 0x08, SEEK_SET);
@@ -69,8 +71,9 @@ int main(int argc, char *argv[])
 
     lc3_reset();
     lc3_writemem(origin, (lc3byte *) prog, len);
-    lc3_execute(origin, 64);
-
+    lc3_writereg(R_PC, origin);
+    lc3_writereg(R_MCR, CLOCK_ENABLE);
+    lc3_run();
     lc3_printregs();
 
     free(prog);
