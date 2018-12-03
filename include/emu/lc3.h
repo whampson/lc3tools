@@ -25,27 +25,32 @@
 /*
  * LC-3 address space size.
  */
-#define MEMSIZE (1 << 16)
+#define MEMSIZE         (1 << 16)
 
 /*
  * Number of general purpose registers.
  */
-#define GPREGS  8
+#define GPREGS          8
 
 /*
  * Memory-mapped I/O addresses.
  */
-#define KBSR    0xFE00  /* keyboard status register */
-#define KBDR    0xFE02  /* keyboard data register */
-#define DSR     0xFE04  /* display status register */
-#define DDR     0xFE06  /* display data register */
-#define MCR     0xFFFE  /* machine control register */
+#define A_KBSR          0xFE00  /* keyboard status register */
+#define A_KBDR          0xFE02  /* keyboard data register */
+#define A_DSR           0xFE04  /* display status register */
+#define A_DDR           0xFE06  /* display data register */
+#define A_MCR           0xFFFE  /* machine control register */
+
+/*
+ * Machine Control Register fields.
+ */
+#define CLOCK_ENABLE    0x8000
 
 /*
  * Privilege modes.
  */
-#define PRIV_SUPER  0
-#define PRIV_USER   1
+#define PRIV_SUPER      0
+#define PRIV_USER       1
 
 /*
  * LC-3 data types.
@@ -57,7 +62,7 @@ typedef short           lc3sword;
 /*
  * The LC-3 CPU state.
  */
-typedef struct {
+struct lc3cpu {
     lc3word r[GPREGS];      /* general purpose registers */
     lc3word pc;             /* program counter */
     lc3word ir;             /* instruction register */
@@ -65,8 +70,6 @@ typedef struct {
     lc3word mdr;            /* memory data register */
     lc3word saved_ssp;      /* saved supervisor stack pointer */
     lc3word saved_usp;      /* saved user stack pointer */
-    int     intf;           /* interrupt flag */
-    lc3byte intv;           /* interrupt vector */
     union {
         struct {
             lc3word p           : 1;    /* positive flag */
@@ -79,8 +82,10 @@ typedef struct {
         };
         lc3word value;                  /* aggregate value */
     } psr;                  /* processor status register */
+    int     intf;           /* interrupt flag */
+    lc3byte intv;           /* interrupt vector */
     lc3byte m[MEMSIZE];     /* random access memory */
-} lc3cpu;
+};
 
 /*
  * LC-3b opcodes.
@@ -105,28 +110,95 @@ enum lc3op {
     NUM_OPS     /* (number of opcodes) */
 };
 
+/*
+ * LC-3 registers.
+ */
+enum lc3reg {
+    R_0,
+    R_1,
+    R_2,
+    R_3,
+    R_4,
+    R_5,
+    R_6,
+    R_7,
+    R_PC,
+    R_IR,
+    R_MAR,
+    R_MDR,
+    R_SSP,
+    R_USP,
+    R_PSR,
+    R_KBSR,
+    R_KBDR,
+    R_DSR,
+    R_DDR,
+    R_MCR,
+    NUM_REGS
+};
+
 /* ===== FUNCTIONS DEFINED IN src/emu/lc3.c ===== */
 
 /*
- * Reset the CPU. Memory is not modified.
+ * Reset all registers to zero.
+ * Memory outside the memory-mapped I/O region is not modified.
  */
 void lc3_reset(void);
 
 /*
- * Read an array of bytes from main memory.
+ * Read a register value.
+ *
+ * @param reg   the register number (see lc3reg enum)
+ * @param data  the address where the register value will be written to
+ * @return      -1 for a bad pointer or invalid register number;
+ *               0 for a successful read
  */
-void lc3_readmem(lc3byte *data, lc3word addr, size_t nbytes);
+int lc3_readreg(int reg, lc3word *data);
+
+/*
+ * Set a register value.
+ *
+ * @param reg   the register number (see lc3reg enum)
+ * @param data  the value to store in the register
+ * @return      -1 for an invalid register number;
+ *               0 for a successful write
+ */
+int lc3_writereg(int reg, lc3word data);
+
+/*
+ * Read an array of bytes from main memory.
+ *
+ * @param data  a pre-allocated buffer of at least n bytes in size used for
+ *              storing the read data
+ * @param addr  the address to start reading from
+ * @param n     the number of bytes to read
+ * @return      -1 for a bad argument;
+ *               0 for a successful read
+ */
+int lc3_readmem(lc3byte *data, lc3word addr, size_t n);
 
 /*
  * Write an array of bytes into main memory.
+ *
+ * @param addr  the address to start writing to
+ * @param data  a buffer of at most n bytes containing the data to be written
+ * @param n     the number of bytes to write
+ * @return      -1 for a bad argument;
+ *               0 for a successful write
  */
-void lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes);
+int lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes);
 
 /*
- * Begin executing instructions at the specified address.
- * (TODO: when does it halt?)
+ * Execute exactly one instruction cycle.
+ * The ability to step is not dependent on the state of the clock enable bit
+ * in MCR.
  */
-void lc3_execute(lc3word addr, int ninstr);
+void lc3_step(void);
+
+/*
+ * Execute instructions for as long as the clock enable bit in MCR is high.
+ */
+void lc3_run(void);
 
 /*
  * Print all registers to STDOUT.
