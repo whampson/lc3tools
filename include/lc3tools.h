@@ -22,19 +22,29 @@
 #ifndef __LC3TOOLS_H
 #define __LC3TOOLS_H
 
+/*
+ * Debug build switch.
+ * Uncomment to build lc3tools with debugging info.
+ */
+#define DEBUG 1
+
+/*
+ * File separator character.
+ */
 #ifdef _WIN32
 #define FILE_SEPARATOR   '\\'
 #else
 #define FILE_SEPARATOR   '/'
 #endif
 
-/* ===== Defined in src/lib/path.c ===== */
 
-/**
- * Retrieves the file name from a file path string.
+/* ===== Functions defined in src/lib/path.c ===== */
+
+/*
+ * Retrieve the file name from a file path string.
  *
- * @param a file path
- * @return the file name
+ * @param path  a file path
+ * @return      the extracted file name
  */
 char * get_filename(char *path);
 
