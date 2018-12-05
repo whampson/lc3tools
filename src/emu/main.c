@@ -69,10 +69,11 @@ int main(int argc, char *argv[])
     /* TODO: check length */
     fread(prog, 2, len, f);
 
-    lc3_reset();
+    lc3_zero();
     lc3_writemem(origin, (lc3byte *) prog, len);
     lc3_writereg(R_PC, origin);
-    lc3_writereg(R_MCR, CLOCK_ENABLE);
+    lc3_writereg(R_MCR, MCR_CE);
+    lc3_writereg(R_PSR, 0x0702);    /* run program with PL7 */
     lc3_run();
     lc3_printregs();
 
