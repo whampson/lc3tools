@@ -33,8 +33,34 @@
 #define GPREGS          8
 
 /*
- * Memory-mapped I/O addresses.
+ * Privilege modes.
  */
+#define PRIV_SUPER      0
+#define PRIV_USER       1
+
+/*
+ * Interrupt and Exception vectors.
+ */
+#define E_PRIV          0x00    /* Privilege Mode Violation exception */
+#define E_OPCODE        0x01    /* Illegal Opcode exception */
+#define E_OPADDR        0x02    /* Illegal Operand Address exception */
+#define I_KEYBOARD      0x80    /* Keyboard Interrupt */
+#define I_DISPLAY       0x81    /* Display Interrupt */
+
+/*
+ * Interrupt priority levels.
+ */
+#define PL_EXCEPTION    0x00    /* exceptions have the highest priority */
+#define PL_KEYBOARD     0x04
+#define PL_DISPLAY      0x04
+
+/*
+ * Important memory addresses.
+ */
+#define A_TVT           0x0000  /* Trap Vector Table */
+#define A_IVT           0x0200  /* Interrupt Vector Table */
+#define A_SSP           0x3000  /* default supervisor stack pointer */
+#define A_USP           0xFE00  /* default user stack pointer */
 #define A_KBSR          0xFE00  /* keyboard status register */
 #define A_KBDR          0xFE02  /* keyboard data register */
 #define A_DSR           0xFE04  /* display status register */
@@ -42,15 +68,13 @@
 #define A_MCR           0xFFFE  /* machine control register */
 
 /*
- * Machine Control Register fields.
+ * Device register fields.
  */
-#define CLOCK_ENABLE    0x8000
-
-/*
- * Privilege modes.
- */
-#define PRIV_SUPER      0
-#define PRIV_USER       1
+#define KBSR_RD         0x8000  /* keyboard ready */
+#define KBSR_IE         0x4000  /* keyboard interrupt enable */
+#define DSR_RD          0x4000  /* display ready */
+#define DSR_IE          0x4000  /* display interrupt enable */
+#define MCR_CE          0x8000  /* machine clock enable */
 
 /*
  * LC-3 data types.
@@ -78,12 +102,13 @@ struct lc3cpu {
             lc3word _reserved1  : 5;    /* (reserved, do not use) */
             lc3word priority    : 3;    /* priority level */
             lc3word _reserved0  : 4;    /* (reserved, do not use) */
-            lc3word privilege   : 1;    /* privilege level; super = 0, user = 1 */
+            lc3word privilege   : 1;    /* priv. level; super = 0, user = 1 */
         };
         lc3word value;                  /* aggregate value */
     } psr;                  /* processor status register */
     int     intf;           /* interrupt flag */
     lc3byte intv;           /* interrupt vector */
+    lc3byte intp;           /* interrupt priority */
     lc3byte m[MEMSIZE];     /* random access memory */
 };
 
@@ -143,7 +168,7 @@ enum lc3reg {
  * Reset all registers to zero.
  * Memory outside the memory-mapped I/O region is not modified.
  */
-void lc3_reset(void);
+void lc3_zero(void);
 
 /*
  * Read a register value.
