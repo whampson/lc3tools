@@ -1,23 +1,58 @@
 # lc3tools
-An implementation of the LC-3 instruction set architecture and assorted tools.
+An implementation of the [LC-3b](#The-LC-3b) instruction set architecture and
+assorted tools.
 
 ## Tools
-| Name      | Status        | Notes                     |
-| --------- | ------------- | ------------------------- |
-| lc3emu    | In-progres    | Emulator/Debugger         |
-| lc3as     | Planned       | Assembler                 |
-| lc3disas  | Planned       | Disassembler              |
-| lc3cc     | Planned       | C Compiler                |
+| Name        |  Status       | Notes                     |
+| ----------- | ------------- | ------------------------- |
+| `lc3emu`    | In-progress   | Emulator/Debugger         |
+| `lc3as`     | Planned       | Assembler                 |
+| `lc3disas`  | Planned       | Disassembler              |
+| `lc3cc`     | Planned       | C Compiler                |
 
 ## The LC-3 Instruction Set Architecture
 LC-3 is a simple 16-bit instruction set architecture designed for teaching
-purposes. It was developed by Yale Pat of UT-Austin and Sanjay Patel of UIUC and
-described in their textbook
+purposes. It was developed by Yale Patt of UT-Austin and Sanjay Patel of UIUC
+and described in their textbook
 *Introduction to Computing Systems: From Bits and Gates to C and Beyond*
 (ISBN 0-07-246750-9). It is a load-store architecture and features 16
 instructions, 8 general purpose registers, conditional and unconditional jumps,
 and can manipulate integers via addition, bitwise operations, and shifting.
 Floating-point operations are not supported by the ISA.
+
+### Memory Map
+The LC-3 uses a flat memory model with no protection. The stack grows towards
+lower addresses (i.e. towards `0000`).
+
+          0000  +-------------------------+
+                |    Trap Vector Table    |
+          0200  +-------------------------+
+                | Interrupt Vector Table  |
+          0400  +-------------------------+
+                |                         |
+                |    Operating System     |
+                |                         |
+          3000  +-------------------------+ <-- Supervisor Stack Pointer
+                |                         |
+                |                         |
+                |                         |
+                |   User Program Space    |
+                |                         |
+                |                         |
+                |                         |
+          FE00  +-------------------------+ <-- User Stack Pointer
+                |    Memory-Mapped I/O    |
+          FFFF  +-------------------------+
+
+#### Memory-Mapped I/O
+| Address   | Direction | Register Name | Function  |
+| --------- | --------- | ------------- | --------- |
+| `0xFE00`  | R/W       | KBSR          | Keyboard status register<ul><li>bit [15] - status bit (R), indicates if the keyboard has received a new character</li><li>bit [14] - interrupt enable (R/W), indicates whether the keyboard should raise an interrupt when a character is typed</li><li> bits [13:0] - (not used)</ul>
+| `0xFE02`  | R         | KBDR          | Keyboard data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - last character typed (ASCII)</li></ul>
+| `0xFE04`  | R/W       | DSR           | Display status register<ul><li>bit [15] - status bit (R), indicates if the display device is ready to receive another character to print on the screen</li><li>bit [14] - interrupt enable (R/W), indicates whether the display device should raise an interrupt when it has finished printing a character</li><li> bits [13:0] - (not used)</ul>
+| `0xFE06`  | W         | DDR           | Display data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - the character to display on the screen (ASCII)</li></ul>
+| `0xFFFE`  | R/W       | MCR           | Machine control register<ul><li>bit [15] - clock enable bit, instruction processing stops when cleared</li><li>bits [14:0] - (not used)</li></ul>
+
 
 ### The LC-3b
 LC-3b is a minor extension of the LC-3 ISA not described in Patt & Patel's
