@@ -41,11 +41,7 @@
 
 /*
  * TODO:
- *   - Interrupt/exception handling
- *     - Illegal Opcode
- *     - Illegal Operand
- *     - Privilege Violation
- *     - (...)
+ *   - Implement microcode
  *   - TEST, TEST, TEST!
  */
 
@@ -108,6 +104,7 @@
 #define SET_DDR(x)      (mem_w(A_DDR,  x))
 #define SET_MCR(x)      (mem_w(A_MCR,  x))
 
+
 /*
  * LC-3 instruction function pointer type.
  */
@@ -134,6 +131,9 @@ static void exec_shf(void);
 static void exec_lea(void);
 static void exec_trap(void);
 
+static void interrupt(void);
+static void exception(int vec);
+
 static inline void setcc(void);
 
 static inline lc3word reg_r(int n);
@@ -147,6 +147,7 @@ static inline void mem_wb(lc3word addr, lc3byte data);
 
 static inline void stack_push(lc3word data);
 static inline lc3word stack_pop(void);
+static inline void stack_switch(int to_privilege);
 
 static inline lc3sword sign_extend(lc3word val, int pos);
 
@@ -172,7 +173,7 @@ static struct lc3cpu cpu;
  * Reset all registers to zero.
  * Memory outside the memory-mapped I/O region is not modified.
  */
-void lc3_reset(void)
+void lc3_zero(void)
 {
     int i;
 
@@ -308,7 +309,10 @@ void lc3_step(void)
     cpu.ir = mem_r(cpu.pc);
     cpu.pc += 2;
 
-    /* TODO: check interrupts */
+    if (cpu.intf) {
+        interrupt();
+        return;
+    }
 
     exec_table[OPCODE()]();
 }
@@ -318,7 +322,7 @@ void lc3_step(void)
  */
 void lc3_run(void)
 {
-    while ((MCR() & CLOCK_ENABLE) == CLOCK_ENABLE) {
+    while ((MCR() & MCR_CE) == MCR_CE) {
         lc3_step();
     }
 }
@@ -354,20 +358,17 @@ void lc3_printregs(void)
  */
 static void exec_br(void)
 {
-    lc3sword pcoffset;
-
-    pcoffset = sign_extend(OFF9(), 9);
-    if ((N() && IR_N()) || (Z() && IR_Z()) || (P() && IR_P())) {
-        cpu.pc += (pcoffset << 1);
-    }
-
     #ifdef DEBUG
     printf("BR");
     if (IR_N()) printf("n");
     if (IR_Z()) printf("z");
     if (IR_P()) printf("p");
-    printf("\t#%d\n", (pcoffset << 1));
+    printf("\t#%d\n", (sign_extend(OFF9(), 9) << 1));
     #endif
+
+    if ((N() && IR_N()) || (Z() && IR_Z()) || (P() && IR_P())) {
+        cpu.pc += (sign_extend(OFF9(), 9) << 1);
+    }
 }
 
 /*
@@ -379,14 +380,6 @@ void exec_add(void)
     lc3word op1, op2;
     lc3word result;
 
-    op1 = reg_r(SR1());
-    op2 = (A())
-        ? sign_extend(IMM5(), 5)
-        : reg_r(SR2());
-    result = op1 + op2;
-    reg_w(DR(), result);
-    setcc();
-
     #ifdef DEBUG
     printf("ADD\tR%d, R%d, ", DR(), SR1());
     if (A())
@@ -394,6 +387,14 @@ void exec_add(void)
     else
         printf("R%d\n", SR2());
     #endif
+
+    op1 = reg_r(SR1());
+    op2 = (A())
+        ? sign_extend(IMM5(), 5)
+        : reg_r(SR2());
+    result = op1 + op2;
+    reg_w(DR(), result);
+    setcc();
 }
 
 /*
@@ -405,14 +406,14 @@ static void exec_ldb(void)
     lc3word addr;
     lc3word data;
 
+    #ifdef DEBUG
+    printf("LDB\tR%d, R%d, #%d\n", DR(), BASER(), sign_extend(OFF6(), 6));
+    #endif
+
     addr = reg_r(BASER()) + sign_extend(OFF6(), 6);
     data = sign_extend(mem_rb(addr), 8);
     reg_w(DR(), data);
     setcc();
-
-    #ifdef DEBUG
-    printf("LDB\tR%d, R%d, #%d\n", DR(), BASER(), sign_extend(OFF6(), 6));
-    #endif
 }
 
 /*
@@ -424,37 +425,50 @@ static void exec_stb(void)
     lc3word addr;
     lc3byte data;
 
-    addr = reg_r(BASER()) + sign_extend(OFF6(), 6);
-    data = reg_r(SR()) & 0xFF;
-    mem_wb(DR(), data);
-
     #ifdef DEBUG
     printf("STB\tR%d, R%d, #%d\n", SR(), BASER(), sign_extend(OFF6(), 6));
     #endif
+
+    addr = reg_r(BASER()) + sign_extend(OFF6(), 6);
+    data = reg_r(SR()) & 0xFF;
+    mem_wb(DR(), data);
 }
 
 /*
  * JSR: Jump to sub-routine
  * Opcode 0100
+ *
+ * If the target address is retrieved from a register and the address is odd,
+ * an Illegal Operand Address exception is raised.
  */
 static void exec_jsr(void)
 {
-    /* TODO: if A_JSR() == 0 and BASER() is odd, throw illegal operand exception */
-
-    reg_w(R_7, cpu.pc);
-    cpu.pc = (A_JSR())
-        ? (cpu.pc + (sign_extend(OFF11(), 11) << 1))
-        : reg_r(BASER());
+    lc3word addr;
 
     #ifdef DEBUG
     printf("JSR");
     if (A_JSR()) {
-        printf("\t#%d\n", sign_extend(OFF11(), 11));
+        printf("\t#%d\n", sign_extend(OFF11(), 11) << 1);
     }
     else {
         printf("R\tR%d\n", BASER());
     }
     #endif
+
+    if (A_JSR()) {
+        addr = cpu.pc + (sign_extend(OFF11(), 11) << 1);
+    }
+    else {
+        addr = reg_r(BASER());
+    }
+
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+
+    reg_w(R_7, cpu.pc);
+    cpu.pc = addr;
 }
 
 /*
@@ -466,14 +480,6 @@ static void exec_and(void)
     lc3word op1, op2;
     lc3word result;
 
-    op1 = reg_r(SR1());
-    op2 = (A())
-        ? sign_extend(IMM5(), 5)
-        : reg_r(SR2());
-    result = op1 & op2;
-    reg_w(DR(), result);
-    setcc();
-
     #ifdef DEBUG
     printf("AND\tR%d, R%d, ", DR(), SR1());
     if (A())
@@ -481,68 +487,96 @@ static void exec_and(void)
     else
         printf("R%d\n", SR2());
     #endif
+
+    op1 = reg_r(SR1());
+    op2 = (A())
+        ? sign_extend(IMM5(), 5)
+        : reg_r(SR2());
+    result = op1 & op2;
+    reg_w(DR(), result);
+    setcc();
 }
 
 /*
  * LDW: Load word
  * Opcode 0110
+ *
+ * If the word address is odd, an Illegal Operand Address exception is raised.
  */
 static void exec_ldw(void)
 {
     lc3word addr;
     lc3word data;
 
-    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
-    data = mem_r(addr);
-    reg_w(DR(), data);
-    setcc();
-
     #ifdef DEBUG
     printf("LDW\tR%d, R%d, #%d\n",
         DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
     #endif
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+
+    data = mem_r(addr);
+    reg_w(DR(), data);
+    setcc();
 }
 
 /*
  * STW: Store word
  * Opcode 0111
+ *
+ * If the word address is odd, an Illegal Operand Address exception is raised.
  */
 static void exec_stw(void)
 {
     lc3word addr;
     lc3word data;
 
-    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
-    data = reg_r(SR());
-    mem_w(addr, data);
-
     #ifdef DEBUG
     printf("STW\tR%d, R%d, #%d\n",
         SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
     #endif
+
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+
+    data = reg_r(SR());
+    mem_w(addr, data);
 }
 
 /*
  * RTI: Return from interrupt
  * Opcode 1000
  *
- * Raises a privilege mode exception if executed while PRIVILEGE = 1 (user).
+ * If executed while PRIVILEGE = 1 (user), a Privilege Mode Violation exception
+ * is raised.
  */
 static void exec_rti(void)
 {
-    /* TODO: privilege mode exception */
-
-    if (PRIVILEGE() == PRIV_USER) {
-        printf("Privilege mode violation!\n");
-        return;
-    }
-
-    cpu.pc = stack_pop();
-    cpu.psr.value = stack_pop();
-
     #ifdef DEBUG
     printf("RTI\n");
     #endif
+
+    /* Invoke Privilege Mode Violation if executed from user privilege */
+    if (PRIVILEGE() == PRIV_USER) {
+        exception(E_PRIV);
+        return;
+    }
+
+    /* Restore PC and PSR */
+    cpu.pc = stack_pop();
+    cpu.psr.value = stack_pop();
+
+    /* Switch stacks if necessary */
+    if (PRIVILEGE() == PRIV_USER) {
+        stack_switch(PRIV_USER);
+    }
 }
 
 /*
@@ -554,14 +588,6 @@ static void exec_xor(void)
     lc3word op1, op2;
     lc3word result;
 
-    op1 = reg_r(SR1());
-    op2 = (A())
-        ? sign_extend(IMM5(), 5)
-        : reg_r(SR2());
-    result = op1 ^ op2;
-    reg_w(DR(), result);
-    setcc();
-
     #ifdef DEBUG
     printf("XOR\tR%d, R%d, ", DR(), SR1());
     if (A())
@@ -569,58 +595,111 @@ static void exec_xor(void)
     else
         printf("R%d\n", SR2());
     #endif
+
+    op1 = reg_r(SR1());
+    op2 = (A())
+        ? sign_extend(IMM5(), 5)
+        : reg_r(SR2());
+    result = op1 ^ op2;
+    reg_w(DR(), result);
+    setcc();
 }
 
 /*
  * LDI: Load word, indirect addressing
  * Opcode 1010
+ *
+ * If either word address is odd, an Illegal Operand Address exception is
+ * raised.
  */
 static void exec_ldi(void)
 {
     lc3word addr;
     lc3word data;
-
-    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
-    data = mem_r(mem_r(addr));
-    reg_w(DR(), data);
-    setcc();
+    int n;
 
     #ifdef DEBUG
     printf("LDI\tR%d, R%d, #%d\n",
         DR(), BASER(), (sign_extend(OFF6(), 6) << 1));
     #endif
+
+    n = 0;
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+
+readmem:
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+
+    data = mem_r(addr);
+    if (n == 0) {
+        n++;
+        addr = data;
+        goto readmem;
+    }
+
+    reg_w(DR(), data);
+    setcc();
 }
 
 /*
  * STI: Store word, indirect addressing
  * Opcode 1011
+ *
+ * If either word address is odd, an Illegal Operand Address exception is
+ * raised.
  */
 static void exec_sti(void)
 {
     lc3word addr;
     lc3word data;
-
-    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
-    data = reg_r(SR());
-    mem_w(mem_r(addr), data);
+    int n;
 
     #ifdef DEBUG
     printf("STI\tR%d, R%d, #%d\n",
         SR(), BASER(), (sign_extend(OFF6(), 6) << 1));
     #endif
+
+    n = 0;
+    addr = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
+
+readmem:
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+    if (n == 0) {
+        n++;
+        addr = mem_r(addr);
+        goto readmem;
+    }
+
+    data = reg_r(SR());
+    mem_w(addr, data);
 }
 
 /*
  * JMP: Unconditional branch
  * Opcode 1100
+ *
+ * If the target address is odd, an Illegal Operand Address exception is raised.
  */
 static void exec_jmp(void)
 {
-    cpu.pc = reg_r(BASER());
+    lc3word addr;
 
     #ifdef DEBUG
     printf("JMP\tR%d\n", BASER());
     #endif
+
+    addr = reg_r(BASER());
+    if (addr & 0x0001) {
+        exception(E_OPADDR);
+        return;
+    }
+
+    cpu.pc = addr;
 }
 
 /*
@@ -631,6 +710,20 @@ static void exec_shf(void)
 {
     lc3word op1, op2;
     lc3word result;
+
+    #ifdef DEBUG
+    if (D()) {
+        printf("RSHF");
+        if (A())
+            printf("A");
+        else
+            printf("L");
+    }
+    else
+        printf("LSHF");
+    printf("\tR%d, R%d, ", DR(), SR1());
+    printf("#%d\n", IMM4());
+    #endif
 
     op1 = reg_r(SR1());
     op2 = IMM4();
@@ -649,20 +742,6 @@ static void exec_shf(void)
     }
     reg_w(DR(), result);
     setcc();
-
-    #ifdef DEBUG
-    if (D()) {
-        printf("RSHF");
-        if (A())
-            printf("A");
-        else
-            printf("L");
-    }
-    else
-        printf("LSHF");
-    printf("\tR%d, R%d, ", DR(), SR1());
-    printf("#%d\n", IMM4());
-    #endif
 }
 
 /*
@@ -673,13 +752,13 @@ static void exec_lea(void)
 {
     lc3word addr;
 
-    addr = cpu.pc + (sign_extend(OFF9(), 9) << 1);
-    reg_w(DR(), addr);
-    setcc();
-
     #ifdef DEBUG
     printf("LEA\tR%d, #%d\n", DR(), sign_extend(OFF9(), 9));
     #endif
+
+    addr = cpu.pc + (sign_extend(OFF9(), 9) << 1);
+    reg_w(DR(), addr);
+    setcc();
 }
 
 /*
@@ -688,12 +767,60 @@ static void exec_lea(void)
  */
 static void exec_trap(void)
 {
-    reg_w(R_7, cpu.pc);
-    cpu.pc = mem_r(TRAPVECT() << 1);
-
     #ifdef DEBUG
     printf("TRAP\t#%d\n", TRAPVECT());
     #endif
+
+    reg_w(R_7, cpu.pc);
+    cpu.pc = mem_r(TRAPVECT() << 1);
+}
+
+static void interrupt(void)
+{
+    lc3word vec;
+    lc3byte pri;
+    lc3word psr;
+    lc3word pc;
+
+    /* Clear the interrupt flag */
+    cpu.intf = 0;
+
+    /* Get interrupt vector and priority */
+    vec = cpu.intv;
+    pri = cpu.intp & 0x07;
+
+    #ifdef DEBUG
+    printf("!! INTERRUPT !!\n");
+    printf("Vector = 0x%02x, Priority = %d\n", vec, pri);
+    #endif
+
+    /* Only service interrupt if priority is higher than current process.
+       Higher priority is indicated by a lower number (0 = high, 7 = low) */
+    if (pri >= PRIORITY()) {
+        return;
+    }
+
+    /* Load supervisor stack if necessary */
+    if (PRIVILEGE() == PRIV_USER) {
+        stack_switch(PRIV_SUPER);
+    }
+
+    /* Save PSR and PC */
+    stack_push(cpu.psr.value);
+    stack_push(cpu.pc - 2);
+
+    /* Switch to supervisor mode */
+    SET_PRIVILEGE(0);
+
+    /* Invoke interrupt service routine */
+    cpu.pc = mem_r(A_IVT | (vec << 1));
+}
+
+static void exception(int vec)
+{
+    cpu.intv = vec;
+    cpu.intp = PL_EXCEPTION;
+    interrupt();
 }
 
 
@@ -738,6 +865,10 @@ static inline lc3word mem_r(lc3word addr)
     cpu.mar = addr;
     cpu.mdr = (cpu.m[(cpu.mar & 0xFFFE) + 1] << 8) | cpu.m[cpu.mar & 0xFFFE];
 
+    // #ifdef DEBUG
+    // printf("> Read 0x%04x from M[0x%04x]\n", cpu.mdr, cpu.mar);
+    // #endif
+
     return cpu.mdr;
 }
 
@@ -762,6 +893,10 @@ static inline void mem_w(lc3word addr, lc3word data)
 
     cpu.m[(cpu.mar & 0xFFFE) + 1] = (cpu.mdr >> 8) & 0xFF;
     cpu.m[cpu.mar & 0xFFFE] = cpu.mdr & 0xFF;
+
+    // #ifdef DEBUG
+    // printf("> Wrote 0x%04x to M[0x%04x]\n", cpu.mdr, cpu.mar);
+    // #endif
 }
 
 /*
@@ -801,6 +936,26 @@ static inline lc3word stack_pop(void)
     sp += 2;
 
     return data;
+}
+
+/*
+ * Switch from the user-mode stack to the supervisor-mode stack and vice-versa.
+ */
+static inline void stack_switch(int to_privilege)
+{
+    lc3word sp;
+    sp = reg_r(R_6);
+
+    if (to_privilege == PRIV_SUPER) {
+        cpu.saved_usp = sp;
+        sp = cpu.saved_ssp;
+    }
+    else {
+        cpu.saved_ssp = sp;
+        sp = cpu.saved_usp;
+    }
+
+    reg_w(R_6, sp);
 }
 
 /*
