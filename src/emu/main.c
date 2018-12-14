@@ -26,6 +26,8 @@
 
 #include <lc3tools.h>
 #include <lc3.h>
+#include <cpu.h>
+#include <mem.h>
 
 /**
  * POSSIBLE OPTIONS
@@ -39,46 +41,60 @@ static void usage(const char *prog_name);
 
 int main(int argc, char *argv[])
 {
-    FILE *f;
-    lc3word origin;
-    lc3word len;
-    lc3word *prog;
-    int i;
+    // FILE *f;
+    // lc3word origin;
+    // lc3word len;
+    // lc3word *prog;
+    // int i;
 
-    if (argc < 2) {
-        usage(get_filename(argv[0]));
-        return 1;
+    // if (argc < 2) {
+    //     usage(get_filename(argv[0]));
+    //     return 1;
+    // }
+
+    // f = fopen(argv[1], "rb");
+    // if (f == NULL) {
+    //     fprintf(stderr, "Error: could not open file.\n");
+    //     return 1;
+    // }
+
+    // fread(&origin, 2, 1, f);
+    // fseek(f, 0x08, SEEK_SET);
+    // fread(&len, 2, 1, f);
+    // fseek(f, 0x10, SEEK_SET);
+
+    // printf("Origin: 0x%04x\n", origin);
+    // printf("Length: 0x%04x\n", len);
+
+    // prog = (lc3word *) malloc(len);
+
+    // /* TODO: check length */
+    // fread(prog, 2, len, f);
+
+    // lc3_zero();
+    // lc3_writemem(origin, (lc3byte *) prog, len);
+    // lc3_writereg(R_PC, origin);
+    // lc3_writereg(R_MCR, MCR_CE);
+    // lc3_writereg(R_PSR, 0x0702);    /* run program with PL7 */
+    // lc3_run();
+    // lc3_printregs();
+
+    // free(prog);
+    // fclose(f);
+    // return 0;
+
+    mem_reset();
+    cpu_reset();
+
+    while (mem_write(0x0000, 0x0FFF, 0xFFFF) == 0) {
+        mem_tick();
     }
 
-    f = fopen(argv[1], "rb");
-    if (f == NULL) {
-        fprintf(stderr, "Error: could not open file.\n");
-        return 1;
+    for (;;) {
+        mem_tick();
+        cpu_tick();
     }
 
-    fread(&origin, 2, 1, f);
-    fseek(f, 0x08, SEEK_SET);
-    fread(&len, 2, 1, f);
-    fseek(f, 0x10, SEEK_SET);
-
-    printf("Origin: 0x%04x\n", origin);
-    printf("Length: 0x%04x\n", len);
-
-    prog = (lc3word *) malloc(len);
-
-    /* TODO: check length */
-    fread(prog, 2, len, f);
-
-    lc3_zero();
-    lc3_writemem(origin, (lc3byte *) prog, len);
-    lc3_writereg(R_PC, origin);
-    lc3_writereg(R_MCR, MCR_CE);
-    lc3_writereg(R_PSR, 0x0702);    /* run program with PL7 */
-    lc3_run();
-    lc3_printregs();
-
-    free(prog);
-    fclose(f);
     return 0;
 }
 

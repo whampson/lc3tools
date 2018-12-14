@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <lc3tools.h>
 #include <lc3.h>
+#include <mem.h>
 
 /* ===== USEFUL MACROS ===== */
 
@@ -266,7 +267,7 @@ int lc3_readmem(lc3byte *data, lc3word addr, size_t n)
 {
     int i;
 
-    if (data == NULL || n > MEMSIZE) {
+    if (data == NULL || n > MEM_SIZE) {
         return -1;
     }
 
@@ -280,15 +281,15 @@ int lc3_readmem(lc3byte *data, lc3word addr, size_t n)
 /*
  * Write an array of bytes into main memory.
  */
-int lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes)
+int lc3_writemem(lc3word addr, lc3byte *data, size_t n)
 {
     int i;
 
-    if (data == NULL || nbytes > MEMSIZE) {
+    if (data == NULL || n > MEM_SIZE) {
         return -1;
     }
 
-    for (i = 0; i < nbytes; i++) {
+    for (i = 0; i < n; i++) {
         mem_wb(addr + i, data[i]);
     }
 
@@ -863,7 +864,7 @@ static inline void reg_w(int n, lc3word data)
 static inline lc3word mem_r(lc3word addr)
 {
     cpu.mar = addr;
-    cpu.mdr = (cpu.m[(cpu.mar & 0xFFFE) + 1] << 8) | cpu.m[cpu.mar & 0xFFFE];
+    // cpu.mdr = (cpu.m[(cpu.mar & 0xFFFE) + 1] << 8) | cpu.m[cpu.mar & 0xFFFE];
 
     // #ifdef DEBUG
     // printf("> Read 0x%04x from M[0x%04x]\n", cpu.mdr, cpu.mar);
@@ -891,8 +892,8 @@ static inline void mem_w(lc3word addr, lc3word data)
     cpu.mar = addr;
     cpu.mdr = data;
 
-    cpu.m[(cpu.mar & 0xFFFE) + 1] = (cpu.mdr >> 8) & 0xFF;
-    cpu.m[cpu.mar & 0xFFFE] = cpu.mdr & 0xFF;
+    // cpu.m[(cpu.mar & 0xFFFE) + 1] = (cpu.mdr >> 8) & 0xFF;
+    // cpu.m[cpu.mar & 0xFFFE] = cpu.mdr & 0xFF;
 
     // #ifdef DEBUG
     // printf("> Wrote 0x%04x to M[0x%04x]\n", cpu.mdr, cpu.mar);
@@ -906,7 +907,7 @@ static inline void mem_wb(lc3word addr, lc3byte data)
 {
     cpu.mar = addr;
     cpu.mdr = (cpu.mar & 0x0001) ? data << 8 : data;
-    cpu.m[cpu.mar] = data;
+    // cpu.m[cpu.mar] = data;
 }
 
 /*
