@@ -22,10 +22,7 @@
 #ifndef __LC3_H
 #define __LC3_H
 
-/*
- * LC-3 address space size.
- */
-#define MEMSIZE         (1 << 16)
+#include <stdlib.h>
 
 /*
  * Number of general purpose registers.
@@ -104,12 +101,13 @@ struct lc3cpu {
             lc3word _reserved0  : 4;    /* (reserved, do not use) */
             lc3word privilege   : 1;    /* priv. level; super = 0, user = 1 */
         };
-        lc3word value;                  /* aggregate value */
+        lc3word value;                  /* (aggregate value) */
     } psr;                  /* processor status register */
+    int     ben;            /* branch enable flag */
     int     intf;           /* interrupt flag */
     lc3byte intv;           /* interrupt vector */
     lc3byte intp;           /* interrupt priority */
-    lc3byte m[MEMSIZE];     /* random access memory */
+    int     state;          /* current state */
 };
 
 /*
@@ -211,7 +209,7 @@ int lc3_readmem(lc3byte *data, lc3word addr, size_t n);
  * @return      -1 for a bad argument;
  *               0 for a successful write
  */
-int lc3_writemem(lc3word addr, lc3byte *data, size_t nbytes);
+int lc3_writemem(lc3word addr, lc3byte *data, size_t n);
 
 /*
  * Execute exactly one instruction cycle.
