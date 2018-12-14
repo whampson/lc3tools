@@ -1,2 +1,5 @@
 build/
 test/
+
+# Ignore pesky macOS files
+.DS_Store
