@@ -41,7 +41,7 @@ void mem_tick(void)
 
 int mem_ready(void)
 {
-     return m.c == 0;
+    return m.c == 0;
 }
 
 
