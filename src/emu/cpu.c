@@ -109,13 +109,13 @@ void cpu_reset(void)
 
 void cpu_tick(void)
 {
-    // printf("State %d!\n", cpu.state);
-    if (cpu.state == 18 || cpu.state == 19) {
-        printf("PC: 0x%04x\n", cpu.pc);
-    }
-    else if (cpu.state == 32) {
-        printf("IR: 0x%04x\n", cpu.ir);
-    }
+    printf("State %d!\n", cpu.state);
+    // if (cpu.state == 18 || cpu.state == 19) {
+    //     printf("PC: 0x%04x\n", cpu.pc);
+    // }
+    // else if (cpu.state == 32) {
+    //     printf("IR: 0x%04x\n", cpu.ir);
+    // }
     state_table[cpu.state]();
     next_state();
 }
@@ -285,12 +285,14 @@ void state_09(void)
 
 void state_10(void)
 {
-
+    /* LDI (1/5) */
+    cpu.mar = reg_r(BASER()) + (sign_extend(OFF9(), 9) << 1);
 }
 
 void state_11(void)
 {
-
+    /* STI (1/5) */
+    cpu.mar = reg_r(BASER()) + (sign_extend(OFF9(), 9) << 1);
 }
 
 void state_12(void)
@@ -340,6 +342,7 @@ void state_15(void)
 void state_16(void)
 {
     /* STW (3/3) */
+    /* STI (5/5) */
     mem_write(cpu.mar, cpu.mdr, 0xFFFF);
 }
 
@@ -391,6 +394,7 @@ void state_22(void)
 void state_23(void)
 {
     /* STW (2/3) */
+    /* STI (4/5) */
     cpu.mdr = reg_r(SR());
 }
 
@@ -403,6 +407,7 @@ void state_24(void)
 void state_25(void)
 {
     /* LDW (2/3) */
+    /* LDI (4/5) */
     mem_read(&cpu.mdr, cpu.mar);
 }
 
@@ -414,6 +419,7 @@ void state_26(void)
 void state_27(void)
 {
     /* LDW (3/3) */
+    /* LDI (5/5) */
     reg_w(DR(), cpu.mdr);
     setcc();
 }
@@ -572,7 +578,8 @@ void state_55(void)
 
 void state_56(void)
 {
-
+    /* LDI (2/5) */
+    mem_read(&cpu.mdr, cpu.mar);
 }
 
 void state_57(void)
@@ -582,7 +589,8 @@ void state_57(void)
 
 void state_58(void)
 {
-
+    /* LDI (3/5) */
+    cpu.mar = cpu.mdr;
 }
 
 void state_59(void)
@@ -592,7 +600,8 @@ void state_59(void)
 
 void state_60(void)
 {
-
+    /* STI (2/5) */
+    mem_read(&cpu.mdr, cpu.mar);
 }
 
 void state_61(void)
@@ -602,7 +611,8 @@ void state_61(void)
 
 void state_62(void)
 {
-
+    /* STI (3/5) */
+    cpu.mar = cpu.mdr;
 }
 
 void state_63(void)
