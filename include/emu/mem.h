@@ -43,7 +43,7 @@
  * Number of clock cycles to wait before reading or writing to memory
  * (to simulate slow hardware).
  */
-#define MEM_DELAY       50
+#define MEM_DELAY       1
 
 /*
  * Memory state.
