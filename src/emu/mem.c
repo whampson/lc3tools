@@ -14,7 +14,7 @@
  *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*==============================================================================
- *   File: src/emu/main.c
+ *   File: src/emu/mem.c
  * Author: Wes Hampson
  *   Desc: Main memory for the LC-3b.
  *         Memory is word-addressable, but individual bytes can be written by
