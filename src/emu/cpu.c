@@ -6,6 +6,7 @@
 #include <cpu.h>
 #include <mem.h>
 #include <state.h>
+#include <pic.h>
 
 /*
  * Instruction Register fields.
@@ -94,7 +95,7 @@ static const state_fn state_table[] = {
 
 static inline lc3word reg_r(int n);
 static inline void reg_w(int n, lc3word data);
-static inline void next_state(void);
+static inline int next_state(void);
 static inline void setcc(void);
 static inline lc3sword sign_extend(lc3word val, int pos);
 
@@ -104,20 +105,39 @@ void cpu_reset(void)
 {
     memset(&cpu, 0, sizeof(struct lc3cpu));
     cpu.state = 18;
+    cpu.saved_ssp = 0x3000;
+    cpu.saved_usp = 0xFE00;
+    reg_w(R_6, cpu.saved_ssp);
     SET_Z(1);
 }
 
 void cpu_tick(void)
 {
-    printf("State %d!\n", cpu.state);
-    // if (cpu.state == 18 || cpu.state == 19) {
-    //     printf("PC: 0x%04x\n", cpu.pc);
-    // }
-    // else if (cpu.state == 32) {
-    //     printf("IR: 0x%04x\n", cpu.ir);
-    // }
+    int irq_mask;
+    int irq_prio;
+    int next;
+
+    /* Check for pending interrupts. If a pending interrupt is detected, INTP
+       is set to the interrupt's priority level, INTV is set to the interrupt's
+       vector number, and INTF is set to 1. Only interrupts with a higher
+       priority than the current-running process's priority will be
+       acknowledged. The interrupt priority is encoded in the IRQ bitmask:
+           IR7..IR0 <=> PL7..PL0
+       A higher PL number indicates higher priority. */
+    irq_mask = get_irq_mask();
+    irq_prio = 7;
+    while (!cpu.intf && irq_prio >= 0) {
+        if (irq_mask & (1 << irq_prio) && irq_prio > PRIORITY()) {
+            cpu.intp = irq_prio;
+            cpu.intv = IRQ_BASE | irq_prio;
+            cpu.intf = 1;
+        }
+        irq_prio--;
+    }
+
+    /* Go to next state */
     state_table[cpu.state]();
-    next_state();
+    cpu.state = next_state();
 }
 
 /* ===== Private Helper Functions ===== */
@@ -139,34 +159,36 @@ static inline void reg_w(int n, lc3word data)
 }
 
 /*
- * Put the CPU into the next state.
+ * Compute the next CPU state.
  */
-inline void next_state(void)
+inline int next_state(void)
 {
     struct ctl_state ctl;
+    int next_state;
 
     ctl = ctl_rom[cpu.state];
     if (ctl.ird) {
-        cpu.state = OPCODE();
-        return;
+        return OPCODE();
     }
 
-    cpu.state = ctl.j;
+    next_state = ctl.j;
     if (mem_ready() && ctl.cond == 0x01) {
-        cpu.state |= 0x02;
+        next_state |= 0x02;
     }
     if (cpu.ben && ctl.cond == 0x02) {
-        cpu.state |= 0x04;
+        next_state |= 0x04;
     }
     if (IR_11() && ctl.cond == 0x03) {
-        cpu.state |= 0x01;
+        next_state |= 0x01;
     }
     if (PRIVILEGE() && ctl.cond == 0x04) {
-        cpu.state |= 0x08;
+        next_state |= 0x08;
     }
     if (cpu.intf && ctl.cond == 0x05) {
-        cpu.state |= 0x10;
+        next_state |= 0x10;
     }
+
+    return next_state;
 }
 
 /*
@@ -265,7 +287,8 @@ void state_07(void)
 
 void state_08(void)
 {
-
+    /* RTI (1/9) */
+    cpu.mar = reg_r(R_6);
 }
 
 void state_09(void)
@@ -467,7 +490,12 @@ void state_33(void)
 
 void state_34(void)
 {
+    /* RTI (7/9) */
+    lc3word sp;
 
+    sp = reg_r(R_6);
+    sp += 2;
+    reg_w(R_6, sp);
 }
 
 void state_35(void)
@@ -478,52 +506,81 @@ void state_35(void)
 
 void state_36(void)
 {
-
+    /* RTI (2/9) */
+    mem_read(&cpu.mdr, cpu.mar);
 }
 
 void state_37(void)
 {
+    /* INT (3/10) */
+    lc3word sp;
 
+    SET_PRIORITY(cpu.intp);
+    SET_PRIVILEGE(PRIV_SUPER);
+
+    sp = reg_r(R_6);
+    sp -= 2;
+    reg_w(R_6, sp);
+    cpu.mar = sp;
 }
 
 void state_38(void)
 {
-
+    /* RTI (3/9) */
+    cpu.pc = cpu.mdr;
 }
 
 void state_39(void)
 {
+    /* RTI (4/9) */
+    lc3word sp;
 
+    sp = reg_r(R_6);
+    sp += 2;
+    reg_w(R_6, sp);
+    cpu.mar = sp;
 }
 
 void state_40(void)
 {
-
+    /* RTI (5/9) */
+    mem_read(&cpu.mdr, cpu.mar);
 }
 
 void state_41(void)
 {
-
+    /* INT (4/10) */
+    mem_write(cpu.mar, cpu.mdr, 0xFFFF);
 }
 
 void state_42(void)
 {
-
+    /* RTI (6/9) */
+    cpu.psr.value = cpu.mdr;
 }
 
 void state_43(void)
 {
-
+    /* INT (5/10) */
+    cpu.mdr = cpu.pc - 2;
 }
 
 void state_44(void)
 {
+    /* Trigger Privilege Mode Violation */
+    cpu.intv = E_PRIV;
+    cpu.mdr = cpu.psr.value;
 
+    /* TODO: temp... */
+    printf("Privilege Mode Violation!\n");
+    while (1);
 }
 
 void state_45(void)
 {
-
+    /* INT (2/10) */
+    cpu.saved_usp = reg_r(R_6);
+    reg_w(R_6, cpu.saved_ssp);
 }
 
 void state_46(void)
@@ -533,32 +590,43 @@ void state_46(void)
 
 void state_47(void)
 {
+    /* INT (6/10) */
+    lc3word sp;
 
+    sp = reg_r(R_6);
+    sp -= 2;
+    reg_w(R_6, sp);
+    cpu.mar = sp;
 }
 
 void state_48(void)
 {
-
+    /* INT (7/10) */
+    mem_write(cpu.mar, cpu.mdr, 0xFFFF);
 }
 
 void state_49(void)
 {
-
+    /* INT (1/10) */
+    cpu.mdr = cpu.psr.value;
 }
 
 void state_50(void)
 {
-
+    /* INT (8/10) */
+    cpu.mar = A_IVT | (cpu.intv << 1);
 }
 
 void state_51(void)
 {
-
+    /* RTI (8/9) */
+    /* NOP */
 }
 
 void state_52(void)
 {
-
+    /* INT (9/10) */
+    mem_read(&cpu.mdr, cpu.mar);
 }
 
 void state_53(void)
@@ -568,7 +636,12 @@ void state_53(void)
 
 void state_54(void)
 {
+    /* INT (10/10) */
+    cpu.pc = cpu.mdr;
 
+    /* Clear the interrupt flags (like an auto-EOI) */
+    clear_irq(cpu.intv);
+    cpu.intf = 0;
 }
 
 void state_55(void)
@@ -595,7 +668,9 @@ void state_58(void)
 
 void state_59(void)
 {
-
+    /* RTI (9/9) */
+    cpu.saved_ssp = reg_r(R_6);
+    reg_w(R_6, cpu.saved_usp);
 }
 
 void state_60(void)
