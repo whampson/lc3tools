@@ -95,4 +95,8 @@ int mem_read(lc3word *data, lc3word addr);
  */
 int mem_write(lc3word addr, lc3word data, lc3word wmask);
 
+void mem_read_nodelay(lc3word *data, lc3word addr);
+
+void mem_write_nodelay(lc3word addr, lc3word data, lc3word wmask);
+
 #endif /* __MEM_H */

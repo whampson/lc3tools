@@ -22,6 +22,7 @@
  *============================================================================*/
 
 #include <mem.h>
+#include <keyboard.h>
 
 static struct lc3mem m;
 
@@ -53,7 +54,14 @@ int mem_read(lc3word *data, lc3word addr)
     }
     else if (m.c == 0) {
         m.r_en = 0;
-        *data = m.d[addr >> 1];
+        switch (addr) {
+            case A_KBSR:
+                *data = get_kbsr();
+                break;
+            default:
+                *data = m.d[addr >> 1];
+                break;
+        }
     }
 
     return !m.r_en;
@@ -67,8 +75,25 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
     }
     else if (m.c == 0) {
         m.w_en = 0;
-        m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
+        switch (addr) {
+            case A_KBSR:
+                set_kbsr((get_kbsr() & ~wmask) | (data & wmask));
+                break;
+            default:
+                m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
+                break;
+        }
     }
 
     return !m.w_en;
+}
+
+void mem_read_nodelay(lc3word *data, lc3word addr)
+{
+    *data = m.d[addr >> 1];
+}
+
+void mem_write_nodelay(lc3word addr, lc3word data, lc3word wmask)
+{
+    m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
 }
