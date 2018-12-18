@@ -16,7 +16,9 @@
 /*==============================================================================
  *   File: include/emu/mem.h
  * Author: Wes Hampson
- *   Desc: Memory for the LC-3b.
+ *   Desc: Main memory for the LC-3b.
+ *         Memory is word-addressable, but individual bytes can be written by
+ *         manipulating the write mask.
  *============================================================================*/
 
 #ifndef __MEM_H
