@@ -36,20 +36,11 @@
 #define PRIV_USER       1
 
 /*
- * Interrupt and Exception vectors.
+ * Exception vectors.
  */
 #define E_PRIV          0x00    /* Privilege Mode Violation exception */
 #define E_OPCODE        0x01    /* Illegal Opcode exception */
 #define E_OPADDR        0x02    /* Illegal Operand Address exception */
-#define I_KEYBOARD      0x80    /* Keyboard Interrupt */
-#define I_DISPLAY       0x81    /* Display Interrupt */
-
-/*
- * Interrupt priority levels.
- */
-#define PL_EXCEPTION    0x00    /* exceptions have the highest priority */
-#define PL_KEYBOARD     0x04
-#define PL_DISPLAY      0x04
 
 /*
  * Important memory addresses.
