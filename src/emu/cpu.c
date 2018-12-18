@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <lc3tools.h>
 #include <lc3.h>
 #include <cpu.h>
 #include <mem.h>
@@ -88,7 +89,7 @@ static const struct ctl_state ctl_rom[] = {
     { 0, 0x03, 20 }, { 0, 0x00, 18 }, { 0, 0x00, 25 }, { 0, 0x00, 23 }, /*  4-7  */
     { 0, 0x04, 36 }, { 0, 0x00, 18 }, { 0, 0x00, 56 }, { 0, 0x00, 60 }, /*  8-11 */
     { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 28 }, /* 12-15 */
-    { 0, 0x00, 18 }, { 0, 0x01, 17 }, { 0, 0x05, 33 }, { 0, 0x05, 33 }, /* 16-19 */
+    { 0, 0x01, 16 }, { 0, 0x01, 17 }, { 0, 0x05, 33 }, { 0, 0x05, 33 }, /* 16-19 */
     { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 16 }, /* 20-23 */
     { 0, 0x00, 17 }, { 0, 0x01, 25 }, { 0, 0x00, 00 }, { 0, 0x00, 18 }, /* 24-27 */
     { 0, 0x01, 28 }, { 0, 0x01, 29 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, /* 28-31 */
@@ -667,6 +668,10 @@ void state_54(void)
     /* Clear the interrupt flags (like an auto-EOI) */
     clear_irq(cpu.intv);
     cpu.intf = 0;
+
+    #if DEBUG
+    printf("Got interrupt! (0x%02x)\r\n", cpu.intv);
+    #endif
 }
 
 void state_55(void)
