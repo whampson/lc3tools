@@ -28,6 +28,7 @@
 #include <lc3.h>
 #include <cpu.h>
 #include <mem.h>
+#include <pic.h>
 
 /**
  * POSSIBLE OPTIONS
@@ -84,12 +85,26 @@ int main(int argc, char *argv[])
     // return 0;
 
     mem_reset();
+    pic_reset();
     cpu_reset();
 
+    /* 0000: BR #-1 (infinite loop at address 0) */
     while (mem_write(0x0000, 0x0FFF, 0xFFFF) == 0) {
         mem_tick();
     }
 
+    /* Interrupt vector for IRQ2 */
+    while (mem_write(0x0200 | (0x82 << 1), 0x0400, 0xFFFF) == 0) {
+        mem_tick();
+    }
+
+    /* Interrupt handler for IRQ2 */
+    /* RTI */
+    while (mem_write(0x0400, 0x8000, 0xFFFF) == 0) {
+        mem_tick();
+    }
+
+    /* Main loop */
     for (;;) {
         mem_tick();
         cpu_tick();
