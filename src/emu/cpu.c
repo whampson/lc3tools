@@ -8,6 +8,12 @@
 #include <state.h>
 #include <pic.h>
 
+/******
+ * TODO:
+ *   - Illegal Operand Address Exception
+ *   - TEST, TEST, TEST!
+ */
+
 /*
  * Instruction Register fields.
  */
@@ -436,7 +442,7 @@ void state_25(void)
 
 void state_26(void)
 {
-
+    /* (unused) */
 }
 
 void state_27(void)
@@ -585,7 +591,7 @@ void state_45(void)
 
 void state_46(void)
 {
-
+    /* (unused) */
 }
 
 void state_47(void)
@@ -631,7 +637,7 @@ void state_52(void)
 
 void state_53(void)
 {
-
+    /* (unused) */
 }
 
 void state_54(void)
@@ -646,7 +652,7 @@ void state_54(void)
 
 void state_55(void)
 {
-
+    /* (unused) */
 }
 
 void state_56(void)
@@ -657,7 +663,7 @@ void state_56(void)
 
 void state_57(void)
 {
-
+    /* (unused) */
 }
 
 void state_58(void)
@@ -681,7 +687,7 @@ void state_60(void)
 
 void state_61(void)
 {
-
+    /* (unused) */
 }
 
 void state_62(void)
@@ -692,5 +698,5 @@ void state_62(void)
 
 void state_63(void)
 {
-
+    /* (unused) */
 }
