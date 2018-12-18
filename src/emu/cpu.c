@@ -1,3 +1,24 @@
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+ * lc3tools - An implementation of the LC-3 ISA and assorted tools.           *
+ * Copyright (C) 2018 Wes Hampson.                                            *
+ *                                                                            *
+ * This program is free software; you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details                                *
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/*==============================================================================
+ *   File: src/emu/cpu.c
+ * Author: Wes Hampson
+ *   Desc: LC-3b CPU logic.
+ *============================================================================*/
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -111,9 +132,7 @@ void cpu_reset(void)
 {
     memset(&cpu, 0, sizeof(struct lc3cpu));
     cpu.state = 18;
-    cpu.saved_ssp = 0x3000;
-    cpu.saved_usp = 0xFE00;
-    reg_w(R_6, cpu.saved_ssp);
+    reg_w(R_6, A_SSP);
     SET_Z(1);
 }
 
