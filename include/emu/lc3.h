@@ -22,6 +22,7 @@
 #ifndef __LC3_H
 #define __LC3_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
 /*
@@ -67,9 +68,9 @@
 /*
  * LC-3 data types.
  */
-typedef unsigned char   lc3byte;
-typedef unsigned short  lc3word;
-typedef short           lc3sword;
+typedef uint8_t         lc3byte;
+typedef uint16_t        lc3word;
+typedef int16_t         lc3sword;
 
 /*
  * The LC-3 CPU state.
