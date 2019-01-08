@@ -54,6 +54,8 @@
 #define A_KBDR          0xFE02  /* keyboard data register */
 #define A_DSR           0xFE04  /* display status register */
 #define A_DDR           0xFE06  /* display data register */
+#define A_ICCR          0xFE10  /* interrupt controller command register */
+#define A_ICDR          0xFE12  /* interrupt controller data register */
 #define A_MCR           0xFFFE  /* machine control register */
 
 /*
@@ -151,73 +153,5 @@ enum lc3reg {
     R_MCR,
     NUM_REGS
 };
-
-/* ===== FUNCTIONS DEFINED IN src/emu/lc3.c ===== */
-
-/*
- * Reset all registers to zero.
- * Memory outside the memory-mapped I/O region is not modified.
- */
-void lc3_zero(void);
-
-/*
- * Read a register value.
- *
- * @param reg   the register number (see lc3reg enum)
- * @param data  the address where the register value will be written to
- * @return      -1 for a bad pointer or invalid register number;
- *               0 for a successful read
- */
-int lc3_readreg(int reg, lc3word *data);
-
-/*
- * Set a register value.
- *
- * @param reg   the register number (see lc3reg enum)
- * @param data  the value to store in the register
- * @return      -1 for an invalid register number;
- *               0 for a successful write
- */
-int lc3_writereg(int reg, lc3word data);
-
-/*
- * Read an array of bytes from main memory.
- *
- * @param data  a pre-allocated buffer of at least n bytes in size used for
- *              storing the read data
- * @param addr  the address to start reading from
- * @param n     the number of bytes to read
- * @return      -1 for a bad argument;
- *               0 for a successful read
- */
-int lc3_readmem(lc3byte *data, lc3word addr, size_t n);
-
-/*
- * Write an array of bytes into main memory.
- *
- * @param addr  the address to start writing to
- * @param data  a buffer of at most n bytes containing the data to be written
- * @param n     the number of bytes to write
- * @return      -1 for a bad argument;
- *               0 for a successful write
- */
-int lc3_writemem(lc3word addr, lc3byte *data, size_t n);
-
-/*
- * Execute exactly one instruction cycle.
- * The ability to step is not dependent on the state of the clock enable bit
- * in MCR.
- */
-void lc3_step(void);
-
-/*
- * Execute instructions for as long as the clock enable bit in MCR is high.
- */
-void lc3_run(void);
-
-/*
- * Print all registers to STDOUT.
- */
-void lc3_printregs(void);
 
 #endif /* __LC3_H */
