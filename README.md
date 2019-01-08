@@ -47,11 +47,42 @@ lower addresses (i.e. towards `0000`).
 #### Memory-Mapped I/O
 | Address   | Direction | Register Name | Function  |
 | --------- | --------- | ------------- | --------- |
-| `0xFE00`  | R/W       | KBSR          | Keyboard status register<ul><li>bit [15] - status bit (R), indicates if the keyboard has received a new character</li><li>bit [14] - interrupt enable (R/W), indicates whether the keyboard should raise an interrupt when a character is typed</li><li> bits [13:0] - (not used)</ul>
-| `0xFE02`  | R         | KBDR          | Keyboard data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - last character typed (ASCII)</li></ul>
-| `0xFE04`  | R/W       | DSR           | Display status register<ul><li>bit [15] - status bit (R), indicates if the display device is ready to receive another character to print on the screen</li><li>bit [14] - interrupt enable (R/W), indicates whether the display device should raise an interrupt when it has finished printing a character</li><li> bits [13:0] - (not used)</ul>
-| `0xFE06`  | W         | DDR           | Display data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - the character to display on the screen (ASCII)</li></ul>
+| `0xFE00`  | R/W       | KBSR          | Keyboard status register<ul><li>bit [15] - status bit, a character has been typed</li><li>bit [14] - interrupt enable, raise an interrupt when a character is typed</li><li> bits [13:0] - (not used)</ul>
+| `0xFE02`  | R         | KBDR          | Keyboard data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - the typed character (ASCII)</li></ul>
+| `0xFE04`  | R/W       | DSR           | Display status register<ul><li>bit [15] - status bit, ready to receive another character to print</li><li>bit [14] - interrupt enable, raise an interrupt when a character has finished printing</li><li> bits [13:0] - (not used)</ul>
+| `0xFE06`  | W         | DDR           | Display data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - the character to print (ASCII)</li></ul>
+| `0xFE10`  | W         | ICCR*         | Interrupt controller command register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - interrupt controller command</li></ul>
+| `0xFE12`  | R/W       | ICDR*         | Interrupt controller data register<ul><li>bits [15:8] - (not used)</li><li>bits [7:0] - data from/to interrupt controller</li></ul>
 | `0xFFFE`  | R/W       | MCR           | Machine control register<ul><li>bit [15] - clock enable bit, instruction processing stops when cleared</li><li>bits [14:0] - (not used)</li></ul>
+
+*Not included in the original LC-3 spec.
+
+#### The Interrupt Controller
+The interrupt controller was added to help implement the LC-3's interrupt
+handling behavior; it is not a part of the original LC-3 specification. The
+interrupt controller is loosely based on the Intel 8259 PIC. There are eight
+interrupt lines, prioritized such that IR7 is the highest and IR0 is the lowest
+(this is the opposite of the 8259). The interrupt controller has three internal
+registers that contain the current state of interrupts and two additional
+registers for configuration. The internal registers (IRR, ISR, IMR) are not
+directly accessible to the CPU, while the configuration registers are accessible
+(see table above).
+
+| Register  | Description                                                     |
+| --------- | --------------------------------------------------------------- |
+| IRR       | Interrupt request register                                      |
+| ISR       | In-service register                                             |
+| IMR       | Interrupt mask register                                         |
+| ICCR      | Command register                                                |
+| ICDR      | Data register                                                   |
+
+Below is a table of commands that can be issued to the interrupt controller via
+ICCR. The argument or result of a command is supplied by ICDR.
+
+| Command   | Name                        | Data                              |
+| --------- | --------------------------- | --------------------------------- |
+| `0x00`    | Read IMR                    | bitmask of disabled interrupts    |
+| `0x01`    | Write IMR                   | bitmask of disabled interrupts    |
 
 
 ### The LC-3b
