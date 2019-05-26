@@ -95,8 +95,22 @@ int mem_read(lc3word *data, lc3word addr);
  */
 int mem_write(lc3word addr, lc3word data, lc3word wmask);
 
+/*
+ * Read a word from memory, but don't simulate memory slowness.
+ * Use this for initialization and debugging only.
+ *
+ * @param data  a pointer to store the value read
+ * @param addr  the address to read from
+ */
 void mem_read_nodelay(lc3word *data, lc3word addr);
 
+/* Write a word to memory, but don't simulate memory slowness.
+ * Use this for initialization and debugging only.
+ *
+ * @param addr  the address to write to
+ * @param data  the data to write
+ * @param wmask a bitmask indicating which bits to overwrite
+ */
 void mem_write_nodelay(lc3word addr, lc3word data, lc3word wmask);
 
 #endif /* __MEM_H */
