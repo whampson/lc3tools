@@ -143,20 +143,22 @@ void cpu_tick(void)
     int irq_prio;
     int next;
 
-    /* Check for pending interrupts. If a pending interrupt is detected, INTP
-       is set to the interrupt's priority level, INTV is set to the interrupt's
-       vector number, and INTF is set to 1. Only interrupts with a higher
-       priority than the current-running process's priority will be
-       acknowledged. The interrupt priority is encoded in the IRQ bitmask:
+    /* Check for pending interrupts.
+       If a pending interrupt is detected, INTP is set to the interrupt's
+       priority level, INTV is set to the interrupt's vector number, and INTF is
+       set to 1. Only interrupts with a higher priority than the current-running
+       process's priority will be acknowledged. The interrupt priority is
+       encoded in the IRQ bitmask:
            IR7..IR0 <=> PL7..PL0
        A higher PL number indicates higher priority. */
-    irq_mask = get_irq_mask();
+    irq_mask = get_irr();
     irq_prio = 7;
     while (!cpu.intf && irq_prio >= 0) {
         if (irq_mask & (1 << irq_prio) && irq_prio > PRIORITY()) {
+            /* Indicate that there's an interrupt waiting to be serviced */
             cpu.intp = irq_prio;
             cpu.intv = IRQ_BASE | irq_prio;
-            cpu.intf = 1;
+            cpu.intf = 1;   /* Disable interrupts */
         }
         irq_prio--;
     }
@@ -315,6 +317,14 @@ void state_08(void)
 {
     /* RTI (1/9) */
     cpu.mar = reg_r(R_6);
+
+    /* Tell the PIC we've serviced this interrupt (like EOI on the 8259) */
+    service_irq(cpu.intv);
+
+    /* TODO: what happens if we get a higher-priority interrupt?
+             intv will be overwritten, will need to store this elsewhere.
+             read Intel-8259 doc to see its behavior for this situation
+    */
 }
 
 void state_09(void)
@@ -335,13 +345,13 @@ void state_09(void)
 void state_10(void)
 {
     /* LDI (1/5) */
-    cpu.mar = reg_r(BASER()) + (sign_extend(OFF9(), 9) << 1);
+    cpu.mar = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
 }
 
 void state_11(void)
 {
     /* STI (1/5) */
-    cpu.mar = reg_r(BASER()) + (sign_extend(OFF9(), 9) << 1);
+    cpu.mar = reg_r(BASER()) + (sign_extend(OFF6(), 6) << 1);
 }
 
 void state_12(void)
@@ -665,13 +675,8 @@ void state_54(void)
     /* INT (10/10) */
     cpu.pc = cpu.mdr;
 
-    /* Clear the interrupt flags (like an auto-EOI) */
-    clear_irq(cpu.intv);
+    /* Re-enable interrupts */
     cpu.intf = 0;
-
-    #if DEBUG
-    printf("Got interrupt! (0x%02x)\r\n", cpu.intv);
-    #endif
 }
 
 void state_55(void)
