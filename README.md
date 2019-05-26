@@ -95,6 +95,10 @@ university webpage:
   - Memory is now byte-addressable.
   - `LD`, `ST` instructions (data storage using PC-relative addressing) have
     been removed.
+  - `LDI`, `STI` instructions no longer use PC-relative addressing and instead
+     use a base register.
+     - Side note: these instructions have been removed from Patt's description
+       of the LC-3b, but I've decided to keep them because I find them useful.
   - `LDB`, `STB` instructions have been added to manipulate individual bytes of
     memory.
   - `LDR`, `STR` instructions have been renamed to `LDW`, `STW` to indicate that
