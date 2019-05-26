@@ -33,6 +33,7 @@
 #include <pic.h>
 #include <keyboard.h>
 
+/* Instruction encodings */
 #define _NOP                0
 #define _AND(dr,sr1,sr2)    (OP_AND<<12|dr<<9|sr1<<6|sr2&7)
 #define _ANDi(dr,sr1,imm)   (OP_AND<<12|dr<<9|sr1<<6|0x20|imm&0x1F)
@@ -65,6 +66,7 @@
 #define _STW(sr,br,off)     (OP_STW<<12|sr<<9|br<<6|off&0x3F)
 #define _STI(sr,br,off)     (OP_STI<<12|sr<<9|br<<6|off&0x3F)
 
+/* Register names */
 #define R0  (R_0)
 #define R1  (R_1)
 #define R2  (R_2)
@@ -75,7 +77,8 @@
 #define R7  (R_7)
 
 /**
- * POSSIBLE OPTIONS
+ * TODO:
+ * POSSIBLE COMMAND-LINE OPTIONS
  * Usage: lc3emu [options] executable
  *   --memory <KiB>   available memory (default 64 KiB, max 64 KiB)
  *   --help
@@ -97,21 +100,37 @@ static void reset_terminal(void);
 
 const lc3word os_code[] =
 {
+    /* == Operating System Code == */
+    /* Just does an infinite loop! :D
+       (so we can test interrupts) */
+
     _BRnzp(-1)
 };
 
 const lc3word isr_code[] =
 {
-    _LEA(R0, 7),
-    _LEA(R1, 7),
-    _LDI(R2, R0, 0),
-    _LDW(R3, R1, 0),
-    _AND(R2, R2, R3),
-    _STI(R2, R0, 0),
+    /* == Keyboard ISR Code == */
+    /* Clears the 'ready' bit in KBSR, then displays the character typed by
+       writing the value of KBDR to DDR */
+
+    /* Code */
+    _LEA(R0, 10),           /* &kbsr_addr                       */
+    _LEA(R1, 10),           /* &kbsr_mask                       */
+    _LDI(R2, R0, 0),        /* unsigned int kbsr = *kbsr_addr   */
+    _LDW(R3, R1, 0),        /* unsigned int mask = kbsr_mask    */
+    _AND(R2, R2, R3),       /* kbsr &= mask                     */
+    _STI(R2, R0, 0),        /* *kbsr_addr = kbsr                */
+    _LEA(R0, 6),            /* &kbdr_addr                       */
+    _LEA(R1, 6),            /* &ddr_addr                        */
+    _LDI(R2, R0, 0),        /* char c = *kbdr_addr              */
+    _STI(R2, R1, 0),        /* *ddr_addr = c;                   */
     _RTI(),
-    _NOP,
-    A_KBSR,
-    0x7FFF
+
+    /* Data */
+    A_KBSR,                 /* kbsr_addr                        */
+    0x7FFF,                 /* kbsr_mask                        */
+    A_KBDR,                 /* kbdr_addr                        */
+    A_DDR                   /* ddr_addr                         */
 };
 
 void print_op(lc3word op)
@@ -121,34 +140,28 @@ void print_op(lc3word op)
 
 int main(int argc, char *argv[])
 {
+    /* Put terminal into raw mode */
     set_nonblock();
 
+    /* Reset machine state */
     kbd_reset();
     mem_reset();
     pic_reset();
     cpu_reset();
 
+    /* Initialize IVT */
+    write_word(A_IVT | ((IRQ_BASE | KBD_IRQ) << 1), KBD_ISR);
+
+    /* Write OS and ISR code to RAM */
     fill_mem(OS_ADDR, os_code, sizeof(os_code) / sizeof(lc3word));
     fill_mem(KBD_ISR, isr_code, sizeof(isr_code) / sizeof(lc3word));
-    write_word(A_IVT | ((IRQ_BASE | KBD_IRQ) << 1), KBD_ISR);   /* intr. vec. */
 
+    /* Go! */
     for (;;) {
         kbd_tick();
         mem_tick();
         cpu_tick();
     }
-
-    // int i;
-
-    // printf("OS Code:\r\n");
-    // for (i = 0; i < sizeof(os_code) / sizeof(lc3word); i++) {
-    //     print_op(os_code[i]);
-    // }
-
-    // printf("\r\nISR Code:\r\n");
-    // for (i = 0; i < sizeof(isr_code) / sizeof(lc3word); i++) {
-    //     print_op(isr_code[i]);
-    // }
 
     return 0;
 }
