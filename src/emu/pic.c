@@ -27,20 +27,33 @@ static struct lc3pic pic;
 
 void pic_reset(void)
 {
-    pic.irq_mask = 0;
+    pic.irr = 0;
+    /* pic.isr = 0; */
+    pic.imr = 0;
+    pic.irq_base = 0;
 }
 
 void raise_irq(int num)
 {
-    pic.irq_mask |= (1 << (num & 7));
+    pic.irr |= (1 << (num & 7)) & ~pic.imr;
 }
 
-void clear_irq(int num)
+void mask_irq(int num)
 {
-    pic.irq_mask &= ~(1 << (num & 7));
+    pic.imr |= 1 << (num & 7);
 }
 
-uint8_t get_irq_mask(void)
+void unmask_irq(int num)
 {
-    return pic.irq_mask;
+    pic.imr &= ~(1 << (num & 7));
+}
+
+void service_irq(int num)
+{
+    pic.irr &= ~(1 << (num & 7));
+}
+
+uint8_t get_irr(void)
+{
+    return pic.irr;
 }

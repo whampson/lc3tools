@@ -18,7 +18,7 @@
  * Author: Wes Hampson
  *   Desc: Programmable Interrupt Controller for the LC-3b.
  *         The PIC is not described in Patt & Patel's book. It is my own design
- *         loosely based on the Intel-8259 PIC.
+ *         loosely based on the Intel 8259 PIC.
  *============================================================================*/
 
 #ifndef __PIC_H
@@ -35,7 +35,10 @@
  * PIC state.
  */
 struct lc3pic {
-    uint8_t irq_mask;   /* bitmask of interrupts pending service */
+    uint8_t irr;        /* interrupt request register */
+    /* uint8_t isr; */       /* in-service register */
+    uint8_t imr;        /* interrupt mask register */
+    uint8_t irq_base;   /* IVT base vector for devices on the PIC */
 };
 
 /*
@@ -51,18 +54,31 @@ void pic_reset(void);
 void raise_irq(int num);
 
 /*
- * Mark that a device has finished being serviced.
+ * Mark that an interrupt has been serviced.
  *
  * @param num   the interrupt request number
  */
-void clear_irq(int num);
+void finish_irq(int num);
 
 /*
- * Get a copy of the current IRQ mask.
- * Each high bit in the mask corresponds to a device that requires service.
+ * Disable interrupts on the specified IRQ line.
  *
- * @return      the interrupt request mask
+ * @param num   the interrupt request number
  */
-uint8_t get_irq_mask(void);
+void mask_irq(int num);
+
+/*
+ * Enable interrupts on the specified IRQ line.
+ *
+ * @param num   the interrupt request number
+ */
+void unmask_irq(int num);
+
+/*
+ * Get the current value of the Interrupt Request Register.
+ *
+ * @return the current value in IRR
+ */
+uint8_t get_irr(void);
 
 #endif /* __PIC_H */
