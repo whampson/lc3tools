@@ -38,6 +38,11 @@ void raise_irq(int num)
     pic.irr |= (1 << (num & 7)) & ~pic.imr;
 }
 
+void finish_irq(int num)
+{
+    pic.irr &= ~(1 << (num & 7));
+}
+
 void mask_irq(int num)
 {
     pic.imr |= 1 << (num & 7);
@@ -46,11 +51,6 @@ void mask_irq(int num)
 void unmask_irq(int num)
 {
     pic.imr &= ~(1 << (num & 7));
-}
-
-void service_irq(int num)
-{
-    pic.irr &= ~(1 << (num & 7));
 }
 
 uint8_t get_irr(void)
