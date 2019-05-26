@@ -29,7 +29,7 @@ void kbd_tick(void)
 {
     unsigned char c;
 
-    if (/*!RD() && */kbhit()) {
+    if (kbhit()) {
         c = getch();
         if (c == 3) {
             printf("CTRL+C pressed!\r\n");
