@@ -21,6 +21,8 @@
  *         manipulating the write mask.
  *============================================================================*/
 
+#include <stdio.h>
+
 #include <mem.h>
 #include <keyboard.h>
 
@@ -45,7 +47,6 @@ int mem_ready(void)
     return m.c == 0;
 }
 
-
 int mem_read(lc3word *data, lc3word addr)
 {
     if (!m.r_en) {
@@ -57,6 +58,9 @@ int mem_read(lc3word *data, lc3word addr)
         switch (addr) {
             case A_KBSR:
                 *data = get_kbsr();
+                break;
+            case A_KBDR:
+                *data = get_kbdr();
                 break;
             default:
                 *data = m.d[addr >> 1];
@@ -79,6 +83,13 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
             case A_KBSR:
                 set_kbsr((get_kbsr() & ~wmask) | (data & wmask));
                 break;
+            case A_DDR:
+            {
+                /* Temp implementation... */
+                putc(data & wmask, stdout);
+                fflush(stdout);
+                break;
+            }
             default:
                 m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
                 break;
