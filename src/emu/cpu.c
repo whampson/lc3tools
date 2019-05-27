@@ -33,6 +33,7 @@
 /******
  * TODO:
  *   - Illegal Operand Address Exception
+ *   - Warn/fail if system enters invalid state
  *   - TEST, TEST, TEST!
  */
 
@@ -75,49 +76,82 @@
 #define SET_Z(x)        (cpu.psr.z = x)
 #define SET_P(x)        (cpu.psr.p = x)
 
+/*
+ * Microsequencer conditional values.
+ */
+#define COND_NONE       0x00    /* Unconditional */
+#define COND_MEM        0x01    /* Memory ready */
+#define COND_BR         0x02    /* Branch */
+#define COND_ADDR       0x03    /* Addressing mode */
+#define COND_PRIV       0x04    /* Privilege mode */
+#define COND_INT        0x05    /* Interrupt test */
+
+/* Next-state masks.
+   For certain next states, the next state number is bitwise OR'd with one of
+   the mask values when the corresponding condition is met.
+*/
+#define STATE_MASK_ADDR 0x01
+#define STATE_MASK_MEM  0x02
+#define STATE_MASK_BR   0x04
+#define STATE_MASK_PRIV 0x08
+#define STATE_MASK_INT  0x10
+
+/*
+ * Microsequencer control state.
+ */
 struct ctl_state {
-    uint16_t ird    : 1;    /* next state retrieved from opcode in IR */
-    uint16_t cond   : 3;    /* next state conditionals (external inputs) */
-    uint16_t j      : 6;    /* the next state */
+    uint16_t ird    : 1;    /* 1 = get next state form IR*/
+    uint16_t cond   : 3;    /* next state conditional flags */
+    uint16_t j      : 6;    /* next state number */
 };
 
-static struct lc3cpu cpu;
-
-/* Unused: 26, 46, 53, 55, 57, 61, 63 */
+/*
+ * Next state table.
+ * Unused states: 26, 46, 53, 55, 57, 61, 63
+ */
 static const struct ctl_state ctl_rom[] = {
-    { 0, 0x02, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 29 }, { 0, 0x00, 24 }, /*  0-3  */
-    { 0, 0x03, 20 }, { 0, 0x00, 18 }, { 0, 0x00, 25 }, { 0, 0x00, 23 }, /*  4-7  */
-    { 0, 0x04, 36 }, { 0, 0x00, 18 }, { 0, 0x00, 56 }, { 0, 0x00, 60 }, /*  8-11 */
-    { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 28 }, /* 12-15 */
-    { 0, 0x01, 16 }, { 0, 0x01, 17 }, { 0, 0x05, 33 }, { 0, 0x05, 33 }, /* 16-19 */
-    { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, { 0, 0x00, 16 }, /* 20-23 */
-    { 0, 0x00, 17 }, { 0, 0x01, 25 }, { 0, 0x00, 00 }, { 0, 0x00, 18 }, /* 24-27 */
-    { 0, 0x01, 28 }, { 0, 0x01, 29 }, { 0, 0x00, 18 }, { 0, 0x00, 18 }, /* 28-31 */
-    { 1, 0x00, 00 }, { 0, 0x01, 33 }, { 0, 0x04, 51 }, { 0, 0x00, 32 }, /* 32-35 */
-    { 0, 0x01, 36 }, { 0, 0x00, 41 }, { 0, 0x00, 39 }, { 0, 0x00, 40 }, /* 36-39 */
-    { 0, 0x01, 40 }, { 0, 0x01, 41 }, { 0, 0x00, 34 }, { 0, 0x00, 47 }, /* 40-43 */
-    { 0, 0x00, 45 }, { 0, 0x00, 37 }, { 0, 0x00, 00 }, { 0, 0x00, 48 }, /* 44-47 */
-    { 0, 0x01, 48 }, { 0, 0x04, 37 }, { 0, 0x00, 52 }, { 0, 0x00, 18 }, /* 48-51 */
-    { 0, 0x01, 52 }, { 0, 0x00, 00 }, { 0, 0x00, 18 }, { 0, 0x00, 00 }, /* 52-55 */
-    { 0, 0x01, 56 }, { 0, 0x00, 00 }, { 0, 0x00, 25 }, { 0, 0x00, 18 }, /* 56-59 */
-    { 0, 0x01, 60 }, { 0, 0x00, 00 }, { 0, 0x00, 23 }, { 0, 0x00, 00 }  /* 60-63 */
+/*  0-3  */ { 0, COND_BR,   18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 29 },   { 0, COND_NONE, 24 },
+/*  4-7  */ { 0, COND_ADDR, 20 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 25 },   { 0, COND_NONE, 23 },
+/*  8-11 */ { 0, COND_PRIV, 36 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 56 },   { 0, COND_NONE, 60 },
+/* 12-15 */ { 0, COND_NONE, 18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 28 },
+/* 16-19 */ { 0, COND_MEM,  16 },   { 0, COND_MEM,  17 },   { 0, COND_INT,  33 },   { 0, COND_INT,  33 },
+/* 20-23 */ { 0, COND_NONE, 18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 16 },
+/* 24-27 */ { 0, COND_NONE, 17 },   { 0, COND_MEM,  25 },   { 0, COND_NONE, 00 },   { 0, COND_NONE, 18 },
+/* 28-31 */ { 0, COND_MEM,  28 },   { 0, COND_MEM,  29 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 18 },
+/* 32-35 */ { 1, COND_NONE, 00 },   { 0, COND_MEM,  33 },   { 0, COND_PRIV, 51 },   { 0, COND_NONE, 32 },
+/* 36-39 */ { 0, COND_MEM,  36 },   { 0, COND_NONE, 41 },   { 0, COND_NONE, 39 },   { 0, COND_NONE, 40 },
+/* 40-43 */ { 0, COND_MEM,  40 },   { 0, COND_MEM,  41 },   { 0, COND_NONE, 34 },   { 0, COND_NONE, 47 },
+/* 44-47 */ { 0, COND_NONE, 45 },   { 0, COND_NONE, 37 },   { 0, COND_NONE, 00 },   { 0, COND_NONE, 48 },
+/* 48-51 */ { 0, COND_MEM,  48 },   { 0, COND_PRIV, 37 },   { 0, COND_NONE, 52 },   { 0, COND_NONE, 18 },
+/* 52-55 */ { 0, COND_MEM,  52 },   { 0, COND_NONE, 00 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 00 },
+/* 56-59 */ { 0, COND_MEM,  56 },   { 0, COND_NONE, 00 },   { 0, COND_NONE, 25 },   { 0, COND_NONE, 18 },
+/* 60-63 */ { 0, COND_MEM,  60 },   { 0, COND_NONE, 00 },   { 0, COND_NONE, 23 },   { 0, COND_NONE, 00 }
 };
 
+/*
+ * State function pointer type.
+ */
 typedef void (*state_fn)(void);
 
+/*
+ * State function pointer table.
+ */
 static const state_fn state_table[] = {
-    state_00, state_01, state_02, state_03, state_04,
-    state_05, state_06, state_07, state_08, state_09,
-    state_10, state_11, state_12, state_13, state_14,
-    state_15, state_16, state_17, state_18, state_19,
-    state_20, state_21, state_22, state_23, state_24,
-    state_25, state_26, state_27, state_28, state_29,
-    state_30, state_31, state_32, state_33, state_34,
-    state_35, state_36, state_37, state_38, state_39,
-    state_40, state_41, state_42, state_43, state_44,
-    state_45, state_46, state_47, state_48, state_49,
-    state_50, state_51, state_52, state_53, state_54,
-    state_55, state_56, state_57, state_58, state_59,
+    state_00, state_01, state_02, state_03,
+    state_04, state_05, state_06, state_07,
+    state_08, state_09, state_10, state_11,
+    state_12, state_13, state_14, state_15,
+    state_16, state_17, state_18, state_19,
+    state_20, state_21, state_22, state_23,
+    state_24, state_25, state_26, state_27,
+    state_28, state_29, state_30, state_31,
+    state_32, state_33, state_34, state_35,
+    state_36, state_37, state_38, state_39,
+    state_40, state_41, state_42, state_43,
+    state_44, state_45, state_46, state_47,
+    state_48, state_49, state_50, state_51,
+    state_52, state_53, state_54, state_55,
+    state_56, state_57, state_58, state_59,
     state_60, state_61, state_62, state_63
 };
 
@@ -127,14 +161,20 @@ static inline int next_state(void);
 static inline void setcc(void);
 static inline lc3sword sign_extend(lc3word val, int pos);
 
+/*
+ * CPU instance.
+ */
+static struct lc3cpu cpu;
+
 /* ===== Public Functions ===== */
 
 void cpu_reset(void)
 {
     memset(&cpu, 0, sizeof(struct lc3cpu));
-    cpu.state = 18;
-    reg_w(R_6, A_SSP);
-    SET_Z(1);
+
+    cpu.state = 18;         /* start in first FETCH state */
+    reg_w(R_6, A_SSP);      /* R6 <- Supervisor Stack Pointer */
+    SET_Z(1);               /* Set Zero flag */
 }
 
 void cpu_tick(void)
@@ -200,20 +240,20 @@ inline int next_state(void)
     }
 
     next_state = ctl.j;
-    if (mem_ready() && ctl.cond == 0x01) {
-        next_state |= 0x02;
+    if (ctl.cond == COND_MEM && mem_ready()) {
+        next_state |= STATE_MASK_MEM;
     }
-    if (cpu.ben && ctl.cond == 0x02) {
-        next_state |= 0x04;
+    if ( ctl.cond == COND_BR && cpu.ben) {
+        next_state |= STATE_MASK_BR;
     }
-    if (IR_11() && ctl.cond == 0x03) {
-        next_state |= 0x01;
+    if (ctl.cond == COND_ADDR && IR_11()) {
+        next_state |= STATE_MASK_ADDR;
     }
-    if (PRIVILEGE() && ctl.cond == 0x04) {
-        next_state |= 0x08;
+    if ( ctl.cond == COND_PRIV && PRIVILEGE()) {
+        next_state |= STATE_MASK_PRIV;
     }
-    if (cpu.intf && ctl.cond == 0x05) {
-        next_state |= 0x10;
+    if (ctl.cond == COND_INT && cpu.intf) {
+        next_state |= STATE_MASK_INT;
     }
 
     return next_state;
