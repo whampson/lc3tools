@@ -68,6 +68,16 @@
 #define MCR_CE          0x8000  /* machine clock enable */
 
 /*
+ * Hardware delay values.
+ * Number of clock cycles to wait before acting to simulate slow hardware.
+ *
+ * These values are somewhat arbitrary, so tweak to your liking! Don't go below
+ * 1 because it might cause problems.
+ */
+#define MEM_DELAY       300
+#define DISP_DELAY      5000
+
+/*
  * LC-3 data types.
  */
 typedef uint8_t         lc3byte;

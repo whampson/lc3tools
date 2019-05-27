@@ -42,12 +42,6 @@
 #define MEM_DEPTH       ((MEM_SIZE) / (MEM_WIDTH / 8))
 
 /*
- * Number of clock cycles to wait before reading or writing to memory
- * (to simulate slow hardware).
- */
-#define MEM_DELAY       1
-
-/*
  * Memory state.
  */
 struct lc3mem {

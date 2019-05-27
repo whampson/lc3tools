@@ -43,7 +43,11 @@ void disp_reset(void)
 
 void disp_tick(void)
 {
-    if (!RD()) {
+    if (disp.c > 0) {
+        disp.c--;
+    }
+
+    if (!RD() && disp.c == 0) {
         putc(disp.ddr & 0xFF, stdout);
         fflush(stdout);
         SET_RD(1);
@@ -71,6 +75,9 @@ lc3word get_ddr(void)
 
 void set_ddr(lc3word value)
 {
-    disp.ddr = value;
-    SET_RD(0);
+    if (RD()) {
+        disp.ddr = value;
+        disp.c = DISP_DELAY;
+        SET_RD(0);
+    }
 }

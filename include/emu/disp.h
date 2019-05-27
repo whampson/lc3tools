@@ -35,6 +35,7 @@
 struct lc3disp {
     lc3word dsr;    /* status register */
     lc3word ddr;    /* data register */
+    unsigned int c; /* busy counter */
 };
 
 /*
