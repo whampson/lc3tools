@@ -169,8 +169,8 @@ int main(int argc, char *argv[])
 
 static inline void dev_tick(void)
 {
-    kbd_tick();
     mem_tick();
+    kbd_tick();
     pic_tick();
 }
 
