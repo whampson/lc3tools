@@ -65,6 +65,8 @@
 #define _STB(sr,br,off)     (OP_STB<<12|sr<<9|br<<6|off&0x3F)
 #define _STW(sr,br,off)     (OP_STW<<12|sr<<9|br<<6|off&0x3F)
 #define _STI(sr,br,off)     (OP_STI<<12|sr<<9|br<<6|off&0x3F)
+#define _PUSH(sr)           _ADDi(R6, R6, -2),  _STW(sr, R6, 0)
+#define _POP(dr)            _LDW(dr, R6, 0),    _ADDi(R6, R6, 2)
 
 /* Register names */
 #define R0  (R_0)
@@ -97,43 +99,74 @@ static void usage(const char *prog_name);
 static void set_nonblock(void);
 static void reset_terminal(void);
 
-#define OS_ADDR         0x0000
-#define KBD_ISR         0x0400
+#define OS_ADDR         0x0400
+#define DISP_ISR        0x0500
+#define KBD_ISR         0x0600
 
 const lc3word os_code[] =
 {
     /* == Operating System Code == */
-    /* Mask keyboard IRQ */
+    /* Disable interrupts from the display device, then spin forever. */
 
     /* Code */
     _LEA(R0, 5),
-    _LDW(R2, R0, 3),    /* r2 = mask */
-    _LDW(R3, R0, 2),    /* r3 = cmd */
-    _STI(R2, R0, 1),    /* *icdr_addr = r2 */
-    _STI(R3, R0, 0),    /* *iccr_addr = r3 */
+    _LDW(R2, R0, 3),    /* r2 = mask                            */
+    _LDW(R3, R0, 2),    /* r3 = cmd                             */
+    _STI(R2, R0, 1),    /* *icdr_addr = r2                      */
+    _STI(R3, R0, 0),    /* *iccr_addr = r3                      */
     _BRnzp(-1),
 
     /* Data */
     A_ICCR,             /* iccr_addr */
     A_ICDR,             /* icdr_addr */
-    PIC_CMD_IMR_W,      /* cmd */
-    (1 << DISP_IRQ)      /* mask */
+    PIC_CMD_IMR_W,      /* cmd: write PIC mask register         */
+    (1 << DISP_IRQ)     /* mask: display device IRQ bit         */
 };
 
-const lc3word isr_code[] =
+const lc3word isr3_code[] =
+{
+    /* == Display Device ISR Code == */
+    /* Continually write NUL. This interrupt will keep firing as long as the
+       display device is ready to take a character. To prevent it from eating
+       up CPU cycles, keep writing NUL until we get a chance to mask interrupts
+       from the display device.
+    */
+
+    /* Code */
+    _PUSH(R0),
+    _PUSH(R1),
+    _LEA(R0, 7),
+    _LDW(R1, R0, 1),    /* r1 = nul                             */
+    _STI(R1, R0, 0),    /* *ddr_addr = r1                       */
+    _POP(R1),
+    _POP(R0),
+    _RTI(),
+
+    /* Data */
+    A_DDR,              /* ddr_addr                             */
+    0x0000,             /* nul                                  */
+};
+
+const lc3word isr4_code[] =
 {
     /* == Keyboard ISR Code == */
     /* Clears the 'ready' bit in KBSR, then displays the character typed by
-       writing the value of KBDR to DDR */
+       writing the value of KBDR to DDR. */
 
     /* Code */
-    _LEA(R0, 7),
-    _LDI(R2, R0, 0),        /* kbsr = *kbsr_addr   */
-    _LDW(R3, R0, 1),        /* mask = kbsr_mask    */
-    _AND(R2, R2, R3),       /* kbsr &= mask                     */
-    _STI(R2, R0, 0),        /* *kbsr_addr = kbsr                */
-    _LDI(R2, R0, 2),        /* char c = *kbdr_addr              */
-    _STI(R2, R0, 3),        /* *ddr_addr = c;                   */
+    _PUSH(R0),
+    _PUSH(R1),
+    _PUSH(R2),
+    _LEA(R0, 13),
+    _LDI(R1, R0, 0),        /* kbsr = *kbsr_addr                */
+    _LDW(R2, R0, 1),        /* mask = kbsr_mask                 */
+    _AND(R1, R1, R2),       /* kbsr &= mask                     */
+    _STI(R1, R0, 0),        /* *kbsr_addr = kbsr                */
+    _LDI(R1, R0, 2),        /* char c = *kbdr_addr              */
+    _STI(R1, R0, 3),        /* *ddr_addr = c;                   */
+    _POP(R2),
+    _POP(R1),
+    _POP(R0),
     _RTI(),
 
     /* Data */
@@ -142,11 +175,6 @@ const lc3word isr_code[] =
     A_KBDR,                 /* kbdr_addr                        */
     A_DDR                   /* ddr_addr                         */
 };
-
-void print_op(lc3word op)
-{
-    printf("0x%04x\r\n", op);
-}
 
 int main(int argc, char *argv[])
 {
@@ -161,11 +189,13 @@ int main(int argc, char *argv[])
     cpu_reset();
 
     /* Initialize IVT */
+    write_word(A_IVT | ((IRQ_BASE | DISP_IRQ) << 1), DISP_ISR);
     write_word(A_IVT | ((IRQ_BASE | KBD_IRQ) << 1), KBD_ISR);
 
     /* Write OS and ISR code to RAM */
     fill_mem(OS_ADDR, os_code, sizeof(os_code) / sizeof(lc3word));
-    fill_mem(KBD_ISR, isr_code, sizeof(isr_code) / sizeof(lc3word));
+    fill_mem(DISP_ISR, isr3_code, sizeof(isr3_code) / sizeof(lc3word));
+    fill_mem(KBD_ISR, isr4_code, sizeof(isr4_code) / sizeof(lc3word));
 
     /* Go! */
     for (;;) {

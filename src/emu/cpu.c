@@ -174,6 +174,12 @@ void cpu_reset(void)
     cpu.state = 18;         /* start in first FETCH state */
     reg_w(R_6, A_SSP);      /* R6 <- Supervisor Stack Pointer */
     SET_Z(1);               /* Set Zero flag */
+
+    /* "Hack" to get the CPU to start executing OS code.
+       TODO: reset vector? could do something like jump to the address stored at
+       M[0]
+    */
+    cpu.pc = 0x0400;
 }
 
 void cpu_tick(void)

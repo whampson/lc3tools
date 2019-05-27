@@ -37,7 +37,7 @@ void disp_reset(void)
 {
     memset(&disp, 0, sizeof(struct lc3disp));
 
-    SET_IE(0);
+    SET_IE(1);
     SET_RD(1);
 }
 
