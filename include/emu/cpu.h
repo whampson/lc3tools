@@ -1,6 +1,6 @@
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
  * lc3tools - An implementation of the LC-3 ISA and assorted tools.           *
- * Copyright (C) 2018 Wes Hampson.                                            *
+ * Copyright (C) 2018-2019 Wes Hampson.                                       *
  *                                                                            *
  * This program is free software; you can redistribute it and/or modify       *
  * it under the terms of the GNU General Public License as published by       *
