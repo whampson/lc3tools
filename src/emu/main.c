@@ -103,10 +103,20 @@ static void reset_terminal(void);
 const lc3word os_code[] =
 {
     /* == Operating System Code == */
-    /* Just does an infinite loop! :D
-       (so we can test interrupts) */
 
-    _BRnzp(-1)
+    /* Mask keyboard IRQ */
+    _LEA(R0, 6),
+    _LEA(R1, 6),
+    _LDW(R2, R0, 3),    /* r2 <- mask */
+    _STI(R2, R1, 0),    /* icdr <- r2 */
+    _LDW(R3, R0, 2),    /* r3 <- cmd */
+    _STI(R3, R0, 0),    /* iccr <- r3 */
+    _BRnzp(-1),
+
+    A_ICCR,
+    A_ICDR,
+    PIC_CMD_IMR_W,      /* cmd */
+    (1 << KBD_IRQ)      /* mask */
 };
 
 const lc3word isr_code[] =
@@ -208,5 +218,6 @@ static void set_nonblock(void)
 
 static void reset_terminal(void)
 {
+    cpu_dumpregs();
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
