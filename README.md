@@ -52,6 +52,60 @@ Below is a list of changes made to the LC-3 to create the LC-3c.
     replaced with bitwise XOR. The instruction encoding for `NOT` remains
     unchanged.
 
+### Instruction Table
+A table of all valid instructions and their encodings.
+All offsets are word offsets, except for `boffset6`, which is a byte offset.
+
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      ADD+  │0 0 0 1│ DR  │ SR1 │A│ op.spec │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      AND+  │0 1 0 1│ DR  │ SR1 │A│ op.spec │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      BR    │0 0 0 0│n z p│    pcoffset9    │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      JMP   │1 1 0 0│0 0 0│BaseR│0 0 0 0 0 0│
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      JSR(R)│0 1 0 0│A│  operand.specifier  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      LDB+  │0 0 1 0│ DR  │BaseR│ boffset6  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      LDW+  │0 1 1 0│ DR  │BaseR│  offset6  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      LDI+  │1 0 1 0│ DR  │BaseR│  offset6  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      LEA+  │1 1 1 0│ DR  │    pcoffset9    │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      RTI   │1 0 0 0│0 0 0 0 0 0 0 0 0 0 0 0│
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      SHF+  │1 1 0 1│ DR  │ SR  │A│D| imm4  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      STB   │0 0 1 1│ SR  │BaseR│ boffset6  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      STW   │0 1 1 1│ SR  │BaseR│  offset6  │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      STI   │1 0 1 1│ SR  │BaseR│1│  imm5   │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      TRAP  │1 1 1 1│0 0 0 0│   trapvect8   │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+            ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐
+      XOR+  │1 0 0 1│ DR  │ SR1 │A│ op.spec │
+            └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
++Instruction modifies condition codes.
+
 ### Memory Map
 The LC-3 uses a flat memory model with no protection. The stack grows towards
 lower addresses (i.e. towards `0000`).
@@ -115,4 +169,3 @@ ICCR. The argument or result of a command is supplied by ICDR.
 | --------- | --------------------------- | --------------------------------- |
 | `0x00`    | Read IMR                    | bitmask of disabled interrupts    |
 | `0x01`    | Write IMR                   | bitmask of disabled interrupts    |
-
