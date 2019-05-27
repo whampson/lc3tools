@@ -75,7 +75,7 @@ void pic_tick(void)
             pic.iccr = 0;
             break;
         case PIC_CMD_IMR_W:
-            pic.imr = pic.icdr;
+            pic.imr = pic.icdr & 0xFF;
             pic.iccr = 0;
             break;
         default:
@@ -116,17 +116,17 @@ void set_imr(uint8_t mask)
     pic.imr = mask;
 }
 
-void set_iccr(uint8_t cmd)
+void set_iccr(lc3word cmd)
 {
     pic.iccr = cmd;
 }
 
-uint8_t get_icdr(void)
+lc3word get_icdr(void)
 {
     return pic.icdr;
 }
 
-void set_icdr(uint8_t data)
+void set_icdr(lc3word data)
 {
     pic.icdr = data;
 }

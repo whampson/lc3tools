@@ -42,7 +42,9 @@ static int getch(void);
 void kbd_reset(void)
 {
     memset(&kbd, 0, sizeof(struct lc3kbd));
+
     SET_IE(1);
+    SET_RD(0);
 }
 
 void kbd_tick(void)

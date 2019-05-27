@@ -44,8 +44,8 @@ struct lc3pic {
     uint8_t irr;        /* interrupt request register */
     uint8_t isr;        /* in-service register */
     uint8_t imr;        /* interrupt mask register */
-    uint8_t iccr;       /* interrupt controller command register */
-    uint8_t icdr;       /* interrupt controller data register */
+    lc3word iccr;       /* interrupt controller command register */
+    lc3word icdr;       /* interrupt controller data register */
 };
 
 /*
@@ -106,20 +106,20 @@ void set_imr(uint8_t mask);
  *
  * @param cmd   the new ICCR value
  */
-void set_iccr(uint8_t cmd);
+void set_iccr(lc3word cmd);
 
 /*
  * Get the current value of the Interrupt Controller Data Register.
  *
  * @return the current value in ICDR
  */
-uint8_t get_icdr(void);
+lc3word get_icdr(void);
 
 /*
  * Set the value of the Interrupt Controller Data Register.
  *
  * @param data  the new ICDR value
  */
-void set_icdr(uint8_t data);
+void set_icdr(lc3word data);
 
 #endif /* __PIC_H */
