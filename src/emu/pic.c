@@ -24,12 +24,16 @@
 #include <cpu.h>
 #include <pic.h>
 
+#define SET_BIT(val,pos)    (val|=(1 <<(pos)))
+#define CLEAR_BIT(val,pos)  (val&=~(1 <<(pos)))
+#define IS_BIT_SET(val,pos) ((val&(1<<(pos)))!=0)
+
 static struct lc3pic pic;
 
 void pic_reset(void)
 {
     pic.irr = 0;
-    /* pic.isr = 0; */
+    pic.isr = 0;
     pic.imr = 0;
 }
 
@@ -48,7 +52,9 @@ void pic_tick(void)
 
     curr_prio = 7;
     while (!cpu_intf() && curr_prio >= 0) {
-        if ((pic.irr & (1 << curr_prio)) && curr_prio > cpu_prio()) {
+        if (curr_prio > cpu_prio() && IS_BIT_SET(pic.irr, curr_prio)) {
+            CLEAR_BIT(pic.irr, curr_prio);
+            SET_BIT(pic.isr, curr_prio);
             cpu_interrupt(IRQ_BASE | curr_prio, curr_prio);
         }
         curr_prio--;
@@ -57,25 +63,43 @@ void pic_tick(void)
 
 void raise_irq(int num)
 {
-    pic.irr |= (1 << (num & 7)) & ~pic.imr;
+    num &= 7;
+    if (!IS_BIT_SET(pic.isr, num) && !IS_BIT_SET(pic.imr, num)) {
+        SET_BIT(pic.irr, num);
+    }
 }
 
 void finish_irq(int num)
 {
-    pic.irr &= ~(1 << (num & 7));
+    CLEAR_BIT(pic.isr, num & 7);
 }
 
-void mask_irq(int num)
-{
-    pic.imr |= 1 << (num & 7);
-}
+// void mask_irq(int num)
+// {
+//     SET_BIT(pic.imr, num & 7);
+// }
 
-void unmask_irq(int num)
-{
-    pic.imr &= ~(1 << (num & 7));
-}
+// void unmask_irq(int num)
+// {
+//     CLEAR_BIT(pic.imr, num & 7);
+// }
 
 uint8_t get_irr(void)
 {
     return pic.irr;
+}
+
+uint8_t get_isr(void)
+{
+    return pic.isr;
+}
+
+uint8_t get_imr(void)
+{
+    return pic.imr;
+}
+
+void set_imr(uint8_t mask)
+{
+    pic.imr = mask;
 }

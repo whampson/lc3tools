@@ -36,7 +36,7 @@
  */
 struct lc3pic {
     uint8_t irr;        /* interrupt request register */
-    /* uint8_t isr; */       /* in-service register */
+    uint8_t isr;        /* in-service register */
     uint8_t imr;        /* interrupt mask register */
 };
 
@@ -64,19 +64,19 @@ void raise_irq(int num);
  */
 void finish_irq(int num);
 
-/*
- * Disable interrupts on the specified IRQ line.
- *
- * @param num   the interrupt request number
- */
-void mask_irq(int num);
+// /*
+//  * Disable interrupts on the specified IRQ line.
+//  *
+//  * @param num   the interrupt request number
+//  */
+// void mask_irq(int num);
 
-/*
- * Enable interrupts on the specified IRQ line.
- *
- * @param num   the interrupt request number
- */
-void unmask_irq(int num);
+// /*
+//  * Enable interrupts on the specified IRQ line.
+//  *
+//  * @param num   the interrupt request number
+//  */
+// void unmask_irq(int num);
 
 /*
  * Get the current value of the Interrupt Request Register.
@@ -84,5 +84,21 @@ void unmask_irq(int num);
  * @return the current value in IRR
  */
 uint8_t get_irr(void);
+
+/*
+ * Get the current value of the In-Service Register.
+ *
+ * @return the current value in ISR
+ */
+uint8_t get_isr(void);
+
+/*
+ * Get the current value of the Interrupt Mask Register.
+ *
+ * @return the current value in IMR
+ */
+uint8_t get_imr(void);
+
+void set_imr(uint8_t mask);
 
 #endif /* __PIC_H */
