@@ -356,12 +356,7 @@ void state_08(void)
     cpu.mar = reg_r(R_6);
 
     /* Tell the PIC we've serviced this interrupt (like EOI on the 8259) */
-    finish_irq(cpu.intv);
-
-    /* TODO: what happens if we get a higher-priority interrupt?
-             intv will be overwritten, will need to store this elsewhere.
-             read Intel-8259 doc to see its behavior for this situation
-    */
+    finish_irq(PRIORITY());
 }
 
 void state_09(void)
