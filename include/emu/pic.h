@@ -16,7 +16,7 @@
 /*==============================================================================
  *   File: include/emu/pic.h
  * Author: Wes Hampson
- *   Desc: Programmable Interrupt Controller for the LC-3b.
+ *   Desc: Programmable Interrupt Controller for the LC-3c.
  *         The PIC is not described in Patt & Patel's book. It is my own design
  *         loosely based on the Intel 8259 PIC.
  *============================================================================*/

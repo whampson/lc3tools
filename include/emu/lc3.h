@@ -16,7 +16,7 @@
 /*==============================================================================
  *   File: include/emu/lc3.h
  * Author: Wes Hampson
- *   Desc: LC-3b instruction set architecture constants and definitions.
+ *   Desc: LC-3c instruction set architecture constants and definitions.
  *============================================================================*/
 
 #ifndef __LC3_H
@@ -105,7 +105,7 @@ struct lc3cpu {
 };
 
 /*
- * LC-3b opcodes.
+ * LC-3c opcodes.
  */
 enum lc3op {
     OP_BR,      /* conditional branch (pc-relative) */
