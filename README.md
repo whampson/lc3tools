@@ -149,23 +149,25 @@ handling behavior; it is not a part of the original LC-3 specification. The
 interrupt controller is loosely based on the Intel 8259 PIC. There are eight
 interrupt lines, prioritized such that IR7 is the highest and IR0 is the lowest
 (this is the opposite of the 8259). The interrupt controller has three internal
-registers that contain the current state of interrupts and two additional
-registers for configuration. The internal registers (IRR, ISR, IMR) are not
-directly accessible to the CPU, while the configuration registers are accessible
-(see table above).
+registers that contain the current state of interrupts and two additional I/O
+registers for reading and writing the internal registers.
 
-| Register  | Description                                                     |
-| --------- | --------------------------------------------------------------- |
-| IRR       | Interrupt request register                                      |
-| ISR       | In-service register                                             |
-| IMR       | Interrupt mask register                                         |
-| ICCR      | Command register                                                |
-| ICDR      | Data register                                                   |
+##### Interrupt Controller Registers
+| Register  | Type      | Name                                                |
+| --------- | ----------| --------------------------------------------------- |
+| IRR       | Internal  | Interrupt Request Register                          |
+| ISR       | Internal  | In-service Register                                 |
+| IMR       | Internal  | Interrupt Mask Register                             |
+| ICCR      | I/O       | Interrupt Controller Command Register               |
+| ICDR      | I/O       | Interrupt Controller Data Register                  |
 
-Below is a table of commands that can be issued to the interrupt controller via
-ICCR. The argument or result of a command is supplied by ICDR.
-
-| Command   | Name                        | Data                              |
-| --------- | --------------------------- | --------------------------------- |
-| `0x00`    | Read IMR                    | bitmask of disabled interrupts    |
-| `0x01`    | Write IMR                   | bitmask of disabled interrupts    |
+##### Interrupt Controller Commands
+| Command   | Direction | Function        | Data                              |
+| --------- | ----------|---------------- | --------------------------------- |
+| `0x01`    | Read      | Get IRR value   | bitmask of requested interrupts   |
+| `0x02`    | Read      | Get ISR value   | bitmask of in-service interrupts  |
+| `0x03`    | Read      | Get IMR value   | bitmask of disabled interrupts    |
+| `0x04`    | Write     | Set IMR value   | bitmask of disabled interrupts    |
+Commands are issued to the interrupt controller by writing to ICCR.
+- For *read* commands, the argument is supplied by writing ICDR.
+- For *write* commands, the result accessed by reading ICDR.
