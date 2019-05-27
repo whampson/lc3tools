@@ -110,25 +110,25 @@ All offsets are word offsets, except for `boffset6`, which is a byte offset.
 The LC-3 uses a flat memory model with no protection. The stack grows towards
 lower addresses (i.e. towards `0000`).
 
-          0000  +-------------------------+
-                |    Trap Vector Table    |
-          0200  +-------------------------+
-                | Interrupt Vector Table  |
-          0400  +-------------------------+
-                |                         |
-                |    Operating System     |
-                |                         |
-          3000  +-------------------------+ <-- Supervisor Stack Pointer
-                |                         |
-                |                         |
-                |                         |
-                |   User Program Space    |
-                |                         |
-                |                         |
-                |                         |
-          FE00  +-------------------------+ <-- User Stack Pointer
-                |    Memory-Mapped I/O    |
-          FFFF  +-------------------------+
+      0000  +-------------------------+
+            |    Trap Vector Table    |
+      0200  +-------------------------+
+            | Interrupt Vector Table  |
+      0400  +-------------------------+
+            |                         |
+            |    Operating System     |
+            |                         |
+      3000  +-------------------------+ <-- Supervisor Stack Pointer
+            |                         |
+            |                         |
+            |                         |
+            |   User Program Space    |
+            |                         |
+            |                         |
+            |                         |
+      FE00  +-------------------------+ <-- User Stack Pointer
+            |    Memory-Mapped I/O    |
+      FFFF  +-------------------------+
 
 #### Memory-Mapped I/O
 | Address   | Direction | Register Name | Function  |
