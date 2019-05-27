@@ -29,7 +29,13 @@
 /*
  * Device interrupt service routine base vector.
  */
-#define IRQ_BASE    0x80
+#define IRQ_BASE        0x80
+
+#define PIC_CMD_IRR_R   0x01
+#define PIC_CMD_ISR_R   0x02
+#define PIC_CMD_IMR_R   0x03
+#define PIC_CMD_IMR_W   0x04
+
 
 /*
  * PIC state.
@@ -38,6 +44,8 @@ struct lc3pic {
     uint8_t irr;        /* interrupt request register */
     uint8_t isr;        /* in-service register */
     uint8_t imr;        /* interrupt mask register */
+    uint8_t iccr;       /* interrupt controller command register */
+    uint8_t icdr;       /* interrupt controller data register */
 };
 
 /*
@@ -91,5 +99,27 @@ uint8_t get_imr(void);
  * @param mask  the new IMR value
  */
 void set_imr(uint8_t mask);
+
+/*
+ * Set the value of the Interrupt Controller Command Register.
+ * This effectively issues a command to the interrupt controller.
+ *
+ * @param cmd   the new ICCR value
+ */
+void set_iccr(uint8_t cmd);
+
+/*
+ * Get the current value of the Interrupt Controller Data Register.
+ *
+ * @return the current value in ICDR
+ */
+uint8_t get_icdr(void);
+
+/*
+ * Set the value of the Interrupt Controller Data Register.
+ *
+ * @param data  the new ICDR value
+ */
+void set_icdr(uint8_t data);
 
 #endif /* __PIC_H */

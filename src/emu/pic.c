@@ -21,6 +21,7 @@
  *         loosely based on the Intel-8259 PIC.
  *============================================================================*/
 
+#include <string.h>
 #include <cpu.h>
 #include <pic.h>
 
@@ -32,9 +33,7 @@ static struct lc3pic pic;
 
 void pic_reset(void)
 {
-    pic.irr = 0;
-    pic.isr = 0;
-    pic.imr = 0;
+    memset(&pic, 0, sizeof(struct lc3pic));
 }
 
 void pic_tick(void)
@@ -58,6 +57,28 @@ void pic_tick(void)
             cpu_interrupt(IRQ_BASE | curr_prio, curr_prio);
         }
         curr_prio--;
+    }
+
+    /* Process any commands that may have come through */
+    switch (pic.iccr) {
+        case PIC_CMD_IRR_R:
+            pic.icdr = pic.irr;
+            pic.iccr = 0;
+            break;
+        case PIC_CMD_ISR_R:
+            pic.icdr = pic.isr;
+            pic.iccr = 0;
+            break;
+        case PIC_CMD_IMR_R:
+            pic.icdr = pic.imr;
+            pic.iccr = 0;
+            break;
+        case PIC_CMD_IMR_W:
+            pic.imr = pic.icdr;
+            pic.iccr = 0;
+            break;
+        default:
+            break;
     }
 }
 
@@ -92,4 +113,19 @@ uint8_t get_imr(void)
 void set_imr(uint8_t mask)
 {
     pic.imr = mask;
+}
+
+void set_iccr(uint8_t cmd)
+{
+    pic.iccr = cmd;
+}
+
+uint8_t get_icdr(void)
+{
+    return pic.icdr;
+}
+
+void set_icdr(uint8_t data)
+{
+    pic.icdr = data;
 }
