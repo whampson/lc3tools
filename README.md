@@ -168,6 +168,7 @@ registers for reading and writing the internal registers.
 | `0x02`    | Read      | Get ISR value   | bitmask of in-service interrupts  |
 | `0x03`    | Read      | Get IMR value   | bitmask of disabled interrupts    |
 | `0x04`    | Write     | Set IMR value   | bitmask of disabled interrupts    |
+
 Commands are issued to the interrupt controller by writing to ICCR.
 - For *read* commands, the argument is supplied by writing ICDR.
 - For *write* commands, the result accessed by reading ICDR.
