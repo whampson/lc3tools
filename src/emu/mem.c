@@ -26,7 +26,20 @@
 #include <mem.h>
 #include <cpu.h>
 #include <kbd.h>
+#include <disp.h>
 #include <pic.h>
+
+/*
+ * Overwrite the bits of a value based on a write mask.
+ *
+ * @param src   data with bits to overwrite
+ * @param data  data with bits to be written
+ * @param wmask write mask
+ */
+#define WRITE_BITS(src,data,wmask)  ((src & ~wmask) | (data & wmask))
+
+static inline void do_read(lc3word *data, lc3word addr);
+static inline void do_write(lc3word addr, lc3word data, lc3word wmask);
 
 static struct lc3mem m;
 
@@ -64,11 +77,14 @@ int mem_read(lc3word *data, lc3word addr)
             case A_KBDR:
                 *data = get_kbdr();
                 break;
+            case A_DSR:
+                *data = get_dsr();
+                break;
             case A_ICDR:
                 *data = get_icdr();
                 break;
             default:
-                *data = m.d[addr >> 1];
+                do_read(data, addr);
                 break;
         }
     }
@@ -86,23 +102,22 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
         m.w_en = 0;
         switch (addr) {
             case A_KBSR:
-                set_kbsr((get_kbsr() & ~wmask) | (data & wmask));
+                set_kbsr(WRITE_BITS(get_kbsr(), data, wmask));
+                break;
+            case A_DSR:
+                set_dsr(WRITE_BITS(get_dsr(), data, wmask));
                 break;
             case A_DDR:
-            {
-                /* Temp implementation... */
-                putc(data & wmask, stdout);
-                fflush(stdout);
+                set_ddr(data);
                 break;
-            }
             case A_ICCR:
-                set_iccr(data & 0xFF);
+                set_iccr(data);
                 break;
             case A_ICDR:
-                set_icdr(data & 0xFF);
+                set_icdr(data);
                 break;
             default:
-                m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
+                do_write(addr, data, wmask);
                 break;
         }
     }
@@ -112,10 +127,20 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
 
 void mem_read_nodelay(lc3word *data, lc3word addr)
 {
-    *data = m.d[addr >> 1];
+    do_read(data, addr);
 }
 
 void mem_write_nodelay(lc3word addr, lc3word data, lc3word wmask)
 {
-    m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
+    do_write(addr, data, wmask);
+}
+
+static inline void do_read(lc3word *data, lc3word addr)
+{
+    *data = m.d[addr >> 1];
+}
+
+static inline void do_write(lc3word addr, lc3word data, lc3word wmask)
+{
+    m.d[addr >> 1] = WRITE_BITS(m.d[addr >> 1], data, wmask);
 }

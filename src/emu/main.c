@@ -30,6 +30,7 @@
 #include <cpu.h>
 #include <mem.h>
 #include <kbd.h>
+#include <disp.h>
 #include <pic.h>
 
 /* Instruction encodings */
@@ -116,7 +117,7 @@ const lc3word os_code[] =
     A_ICCR,             /* iccr_addr */
     A_ICDR,             /* icdr_addr */
     PIC_CMD_IMR_W,      /* cmd */
-    (1 << KBD_IRQ)      /* mask */
+    (1 << DISP_IRQ)      /* mask */
 };
 
 const lc3word isr_code[] =
@@ -153,8 +154,9 @@ int main(int argc, char *argv[])
     set_nonblock();
 
     /* Reset machine state */
-    kbd_reset();
     mem_reset();
+    kbd_reset();
+    disp_reset();
     pic_reset();
     cpu_reset();
 
@@ -178,6 +180,7 @@ static inline void dev_tick(void)
 {
     mem_tick();
     kbd_tick();
+    disp_tick();
     pic_tick();
 }
 

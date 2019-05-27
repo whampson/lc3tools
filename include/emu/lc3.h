@@ -63,7 +63,7 @@
  */
 #define KBSR_RD         0x8000  /* keyboard ready */
 #define KBSR_IE         0x4000  /* keyboard interrupt enable */
-#define DSR_RD          0x4000  /* display ready */
+#define DSR_RD          0x8000  /* display ready */
 #define DSR_IE          0x4000  /* display interrupt enable */
 #define MCR_CE          0x8000  /* machine clock enable */
 
