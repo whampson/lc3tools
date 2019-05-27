@@ -38,13 +38,17 @@ struct lc3pic {
     uint8_t irr;        /* interrupt request register */
     /* uint8_t isr; */       /* in-service register */
     uint8_t imr;        /* interrupt mask register */
-    uint8_t irq_base;   /* IVT base vector for devices on the PIC */
 };
 
 /*
  * Reset PIC control signals.
  */
 void pic_reset(void);
+
+/*
+ * Execute one clock cycle on the PIC.
+ */
+void pic_tick(void);
 
 /*
  * Signal that a device requires service.

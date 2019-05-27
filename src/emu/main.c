@@ -87,6 +87,8 @@
 
 static struct termios orig_termios;
 
+static inline void dev_tick(void);
+
 static void write_word(lc3word addr, lc3word data);
 static void fill_mem(lc3word addr, const lc3word *data, int n);
 
@@ -158,12 +160,18 @@ int main(int argc, char *argv[])
 
     /* Go! */
     for (;;) {
-        kbd_tick();
-        mem_tick();
+        dev_tick();
         cpu_tick();
     }
 
     return 0;
+}
+
+static inline void dev_tick(void)
+{
+    kbd_tick();
+    mem_tick();
+    pic_tick();
 }
 
 static void write_word(lc3word addr, lc3word data)

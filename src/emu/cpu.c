@@ -183,29 +183,26 @@ void cpu_tick(void)
     int irq_prio;
     int next;
 
-    /* Check for pending interrupts.
-       If a pending interrupt is detected, INTP is set to the interrupt's
-       priority level, INTV is set to the interrupt's vector number, and INTF is
-       set to 1. Only interrupts with a higher priority than the current-running
-       process's priority will be acknowledged. The interrupt priority is
-       encoded in the IRQ bitmask:
-           IR7..IR0 <=> PL7..PL0
-       A higher PL number indicates higher priority. */
-    irq_mask = get_irr();
-    irq_prio = 7;
-    while (!cpu.intf && irq_prio >= 0) {
-        if (irq_mask & (1 << irq_prio) && irq_prio > PRIORITY()) {
-            /* Indicate that there's an interrupt waiting to be serviced */
-            cpu.intp = irq_prio;
-            cpu.intv = IRQ_BASE | irq_prio;
-            cpu.intf = 1;   /* Disable interrupts */
-        }
-        irq_prio--;
-    }
-
     /* Go to next state */
     state_table[cpu.state]();
     cpu.state = next_state();
+}
+
+int cpu_intf(void)
+{
+    return cpu.intf;
+}
+
+int cpu_prio(void)
+{
+    return PRIORITY();
+}
+
+void cpu_interrupt(lc3byte vec, lc3byte prio)
+{
+    cpu.intf = 1;
+    cpu.intv = vec;
+    cpu.intp = prio;
 }
 
 /* ===== Private Helper Functions ===== */

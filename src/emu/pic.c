@@ -21,6 +21,7 @@
  *         loosely based on the Intel-8259 PIC.
  *============================================================================*/
 
+#include <cpu.h>
 #include <pic.h>
 
 static struct lc3pic pic;
@@ -30,7 +31,28 @@ void pic_reset(void)
     pic.irr = 0;
     /* pic.isr = 0; */
     pic.imr = 0;
-    pic.irq_base = 0;
+}
+
+void pic_tick(void)
+{
+    int curr_prio;
+
+    /* Check for pending interrupts.
+       If a pending interrupt is detected, INTP is set to the interrupt's
+       priority level, INTV is set to the interrupt's vector number, and INTF is
+       set to 1. Only interrupts with a higher priority than the current-running
+       process's priority will be acknowledged. The interrupt priority is
+       encoded in the IRQ bitmask:
+           IR7..IR0 <=> PL7..PL0
+       A higher PL number indicates higher priority. */
+
+    curr_prio = 7;
+    while (!cpu_intf() && curr_prio >= 0) {
+        if ((pic.irr & (1 << curr_prio)) && curr_prio > cpu_prio()) {
+            cpu_interrupt(IRQ_BASE | curr_prio, curr_prio);
+        }
+        curr_prio--;
+    }
 }
 
 void raise_irq(int num)

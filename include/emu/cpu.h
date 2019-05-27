@@ -22,6 +22,8 @@
 #ifndef __CPU_H
 #define __CPU_H
 
+#include <lc3.h>
+
 /*
  * Reset the CPU.
  *
@@ -36,5 +38,28 @@ void cpu_reset(void);
  * Execute one clock cycle.
  */
 void cpu_tick(void);
+
+/*
+ * Get the current value of INTF (boolean).
+ *
+ * @return the current value of INTF
+ */
+int cpu_intf(void);
+
+/*
+ * Get the current priority level.
+ *
+ * @return the current priority level
+ */
+int cpu_prio(void);
+
+/*
+ * Raise an interrupt on the CPU.
+ *
+ * @param vec   the interrupt vector
+ * @param prio  the interrupt priority
+ */
+void cpu_interrupt(lc3byte vec, lc3byte prio);
+
 
 #endif /* __CPU_H */
