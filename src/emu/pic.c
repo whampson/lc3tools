@@ -74,16 +74,6 @@ void finish_irq(int num)
     CLEAR_BIT(pic.isr, num & 7);
 }
 
-// void mask_irq(int num)
-// {
-//     SET_BIT(pic.imr, num & 7);
-// }
-
-// void unmask_irq(int num)
-// {
-//     CLEAR_BIT(pic.imr, num & 7);
-// }
-
 uint8_t get_irr(void)
 {
     return pic.irr;

@@ -64,20 +64,6 @@ void raise_irq(int num);
  */
 void finish_irq(int num);
 
-// /*
-//  * Disable interrupts on the specified IRQ line.
-//  *
-//  * @param num   the interrupt request number
-//  */
-// void mask_irq(int num);
-
-// /*
-//  * Enable interrupts on the specified IRQ line.
-//  *
-//  * @param num   the interrupt request number
-//  */
-// void unmask_irq(int num);
-
 /*
  * Get the current value of the Interrupt Request Register.
  *
@@ -99,6 +85,11 @@ uint8_t get_isr(void);
  */
 uint8_t get_imr(void);
 
+/*
+ * Set the value of the Interrupt Mask Register.
+ *
+ * @param mask  the new IMR value
+ */
 void set_imr(uint8_t mask);
 
 #endif /* __PIC_H */
