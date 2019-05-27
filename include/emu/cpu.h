@@ -61,5 +61,9 @@ int cpu_prio(void);
  */
 void cpu_interrupt(lc3byte vec, lc3byte prio);
 
+/*
+ * Dump the current register values to STDOUT.
+ */
+void cpu_dumpregs(void);
 
 #endif /* __CPU_H */
