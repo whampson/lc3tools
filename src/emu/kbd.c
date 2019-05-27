@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
 
@@ -40,8 +41,7 @@ static int getch(void);
 
 void kbd_reset(void)
 {
-    kbd.kbsr = 0;
-    kbd.kbdr = 0;
+    memset(&kbd, 0, sizeof(struct lc3kbd));
     SET_IE(1);
 }
 
