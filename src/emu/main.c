@@ -103,18 +103,19 @@ static void reset_terminal(void);
 const lc3word os_code[] =
 {
     /* == Operating System Code == */
-
     /* Mask keyboard IRQ */
-    _LEA(R0, 6),
-    _LEA(R1, 6),
-    _LDW(R2, R0, 3),    /* r2 <- mask */
-    _STI(R2, R1, 0),    /* icdr <- r2 */
-    _LDW(R3, R0, 2),    /* r3 <- cmd */
-    _STI(R3, R0, 0),    /* iccr <- r3 */
+
+    /* Code */
+    _LEA(R0, 5),
+    _LDW(R2, R0, 3),    /* r2 = mask */
+    _LDW(R3, R0, 2),    /* r3 = cmd */
+    _STI(R2, R0, 1),    /* *icdr_addr = r2 */
+    _STI(R3, R0, 0),    /* *iccr_addr = r3 */
     _BRnzp(-1),
 
-    A_ICCR,
-    A_ICDR,
+    /* Data */
+    A_ICCR,             /* iccr_addr */
+    A_ICDR,             /* icdr_addr */
     PIC_CMD_IMR_W,      /* cmd */
     (1 << KBD_IRQ)      /* mask */
 };
@@ -126,16 +127,13 @@ const lc3word isr_code[] =
        writing the value of KBDR to DDR */
 
     /* Code */
-    _LEA(R0, 10),           /* &kbsr_addr                       */
-    _LEA(R1, 10),           /* &kbsr_mask                       */
-    _LDI(R2, R0, 0),        /* unsigned int kbsr = *kbsr_addr   */
-    _LDW(R3, R1, 0),        /* unsigned int mask = kbsr_mask    */
+    _LEA(R0, 7),
+    _LDI(R2, R0, 0),        /* kbsr = *kbsr_addr   */
+    _LDW(R3, R0, 1),        /* mask = kbsr_mask    */
     _AND(R2, R2, R3),       /* kbsr &= mask                     */
     _STI(R2, R0, 0),        /* *kbsr_addr = kbsr                */
-    _LEA(R0, 6),            /* &kbdr_addr                       */
-    _LEA(R1, 6),            /* &ddr_addr                        */
-    _LDI(R2, R0, 0),        /* char c = *kbdr_addr              */
-    _STI(R2, R1, 0),        /* *ddr_addr = c;                   */
+    _LDI(R2, R0, 2),        /* char c = *kbdr_addr              */
+    _STI(R2, R0, 3),        /* *ddr_addr = c;                   */
     _RTI(),
 
     /* Data */
