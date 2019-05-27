@@ -25,6 +25,7 @@
 
 #include <mem.h>
 #include <keyboard.h>
+#include <pic.h>
 
 static struct lc3mem m;
 
@@ -62,6 +63,9 @@ int mem_read(lc3word *data, lc3word addr)
             case A_KBDR:
                 *data = get_kbdr();
                 break;
+            case A_ICDR:
+                *data = get_icdr();
+                break;
             default:
                 *data = m.d[addr >> 1];
                 break;
@@ -90,6 +94,12 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
                 fflush(stdout);
                 break;
             }
+            case A_ICCR:
+                set_iccr(data & 0xFF);
+                break;
+            case A_ICDR:
+                set_icdr(data & 0xFF);
+                break;
             default:
                 m.d[addr >> 1] = (m.d[addr >> 1] & ~wmask) | (data & wmask);
                 break;
