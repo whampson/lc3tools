@@ -116,6 +116,11 @@ void set_imr(uint8_t mask)
     pic.imr = mask;
 }
 
+lc3word get_iccr(void)
+{
+    return pic.iccr;
+}
+
 void set_iccr(lc3word cmd)
 {
     pic.iccr = cmd;

@@ -101,6 +101,13 @@ uint8_t get_imr(void);
 void set_imr(uint8_t mask);
 
 /*
+ * Get the current value of the Interrupt Controller Command Register.
+ *
+ * @return the current value in ICCR
+ */
+lc3word get_iccr(void);
+
+/*
  * Set the value of the Interrupt Controller Command Register.
  * This effectively issues a command to the interrupt controller.
  *
