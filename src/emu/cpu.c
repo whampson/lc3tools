@@ -27,6 +27,7 @@
 #include <state.h>
 #include <mem.h>
 #include <kbd.h>
+#include <disp.h>
 #include <pic.h>
 
 /******
@@ -74,6 +75,12 @@
 #define SET_N(x)        (cpu.psr.n = x)
 #define SET_Z(x)        (cpu.psr.z = x)
 #define SET_P(x)        (cpu.psr.p = x)
+
+/*
+ * Machine Control Register fields.
+ */
+#define CE()        (cpu.mcr & MCR_CE)
+#define SET_CE(x)   (cpu.mcr = (x)?(cpu.mcr|MCR_CE):(cpu.mcr&~MCR_CE))
 
 /*
  * Microsequencer conditional values.
@@ -173,7 +180,8 @@ void cpu_reset(void)
 
     cpu.state = 18;         /* start in first FETCH state */
     reg_w(R_6, A_SSP);      /* R6 <- Supervisor Stack Pointer */
-    SET_Z(1);               /* Set Zero flag */
+    SET_Z(1);               /* set Zero flag */
+    SET_CE(1);              /* set Clock Enable bit */
 
     /* "Hack" to get the CPU to start executing OS code.
        TODO: reset vector? could do something like jump to the address stored at
@@ -208,14 +216,35 @@ void cpu_interrupt(lc3byte vec, lc3byte prio)
 
 void cpu_dumpregs(void)
 {
-    printf("R0 = 0x%04X  R1 = 0x%04X  R2 = 0x%04X  R3 = 0x%04X\r\n", reg_r(0), reg_r(1), reg_r(2), reg_r(3));
-    printf("R4 = 0x%04X  R5 = 0x%04X  R6 = 0x%04X  R7 = 0x%04X\r\n", reg_r(4), reg_r(5), reg_r(6), reg_r(7));
-    printf("PC = 0x%04X  IR = 0x%04X  MAR = 0x%04X MDR = 0x%04X\r\n", cpu.pc, cpu.ir, cpu.mar, cpu.mdr);
-    printf("SSP = 0x%04X USP = 0x%04X\r\n", cpu.saved_ssp, cpu.saved_usp);
-    printf("N = %d Z = %d P = %d\r\n", N(), Z(), P());
-    printf("PRIO = %d PRIV = %d\r\n", PRIORITY(), PRIVILEGE());
-    printf("INTF = %d INTP = 0x%02X INTV = 0x%02X\r\n", cpu.intf, cpu.intp, cpu.intv);
+    printf("  R0 = 0x%04X   R1 = 0x%04X   R2 = 0x%04X   R3 = 0x%04X\r\n", reg_r(0), reg_r(1), reg_r(2), reg_r(3));
+    printf("  R4 = 0x%04X   R5 = 0x%04X   R6 = 0x%04X   R7 = 0x%04X\r\n", reg_r(4), reg_r(5), reg_r(6), reg_r(7));
+    printf("  PC = 0x%04X   IR = 0x%04X  MAR = 0x%04X  MDR = 0x%04X\r\n", cpu.pc, cpu.ir, cpu.mar, cpu.mdr);
+    printf(" SSP = 0x%04X  USP = 0x%04X\r\n", cpu.saved_ssp, cpu.saved_usp);
+    printf(" PSR = 0x%04X { priv = %d, prio = %d, n = %d, z = %d, p = %d }\r\n", cpu.psr.value, PRIVILEGE(), PRIORITY(), N(), Z(), P());
+    printf("INTV = 0x%02X INTP = 0x%02X INTF = %d\r\n", cpu.intv, cpu.intp, cpu.intf);
+    printf(" IRR = 0x%04X  IMR = 0x%04X  ISR = 0x%04X ICCR = 0x%04X ICDR = 0x%04X\r\n", get_irr(), get_imr(), get_isr(), get_iccr(), get_icdr());
+    printf("KBSR = 0x%04X KBDR = 0x%04X  DSR = 0x%04X  DDR = 0x%04X  MCR = 0X%04X\r\n", get_kbsr(), get_kbdr(), get_dsr(), get_ddr(), get_mcr());
     printf("State = %d\r\n", cpu.state);
+}
+
+/*
+ * Get the value of the Machine Control Register.
+ *
+ * @return      current value in MCR
+ */
+lc3word get_mcr(void)
+{
+    return cpu.mcr;
+}
+
+/*
+ * Set the value of the Machine Control Register.
+ *
+ * @param value the value to put in MCR
+ */
+void set_mcr(lc3word value)
+{
+    cpu.mcr = value;
 }
 
 /* ===== Private Helper Functions ===== */

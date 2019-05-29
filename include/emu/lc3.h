@@ -112,6 +112,7 @@ struct lc3cpu {
     lc3byte intv;           /* interrupt vector */
     lc3byte intp;           /* interrupt priority */
     int     state;          /* current state */
+    lc3word mcr;            /* machine control register */
 };
 
 /*

@@ -66,4 +66,18 @@ void cpu_interrupt(lc3byte vec, lc3byte prio);
  */
 void cpu_dumpregs(void);
 
+/*
+ * Get the value of the Machine Control Register.
+ *
+ * @return      current value in MCR
+ */
+lc3word get_mcr(void);
+
+/*
+ * Set the value of the Machine Control Register.
+ *
+ * @param value the value to put in MCR
+ */
+void set_mcr(lc3word value);
+
 #endif /* __CPU_H */

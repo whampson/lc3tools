@@ -83,6 +83,9 @@ int mem_read(lc3word *data, lc3word addr)
             case A_ICDR:
                 *data = get_icdr();
                 break;
+            case A_MCR:
+                *data = get_mcr();
+                break;
             default:
                 do_read(data, addr);
                 break;
@@ -108,13 +111,16 @@ int mem_write(lc3word addr, lc3word data, lc3word wmask)
                 set_dsr(WRITE_BITS(get_dsr(), data, wmask));
                 break;
             case A_DDR:
-                set_ddr(data);
+                set_ddr(WRITE_BITS(get_ddr(), data, wmask));
                 break;
             case A_ICCR:
-                set_iccr(data);
+                set_iccr(WRITE_BITS(get_iccr(), data, wmask));
                 break;
             case A_ICDR:
-                set_icdr(data);
+                set_icdr(WRITE_BITS(get_icdr(), data, wmask));
+                break;
+            case A_MCR:
+                set_mcr(WRITE_BITS(get_mcr(), data, wmask));
                 break;
             default:
                 do_write(addr, data, wmask);

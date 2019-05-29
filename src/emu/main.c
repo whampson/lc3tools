@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
     fill_mem(KBD_ISR, isr4_code, sizeof(isr4_code) / sizeof(lc3word));
 
     /* Go! */
-    for (;;) {
+    while (get_mcr() & MCR_CE) {
         dev_tick();
         cpu_tick();
     }
