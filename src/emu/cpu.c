@@ -102,10 +102,12 @@
 #define STATE_MASK_PRIV 0x08
 #define STATE_MASK_INT  0x10
 
+#define INITIAL_STATE   18
+
 /*
  * Microsequencer control state.
  */
-struct ctl_state {
+struct micro_op {
     uint16_t ird    : 1;    /* 1 = get next state form IR*/
     uint16_t cond   : 3;    /* next state conditional flags */
     uint16_t j      : 6;    /* next state number */
@@ -115,7 +117,7 @@ struct ctl_state {
  * Next state table.
  * Unused states: 26, 46, 53, 55, 57, 61, 63
  */
-static const struct ctl_state ctl_rom[] = {
+static const struct micro_op ctl_rom[] = {
 /*  0-3  */ { 0, COND_BR,   18 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 29 },   { 0, COND_NONE, 24 },
 /*  4-7  */ { 0, COND_ADDR, 20 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 25 },   { 0, COND_NONE, 23 },
 /*  8-11 */ { 0, COND_PRIV, 36 },   { 0, COND_NONE, 18 },   { 0, COND_NONE, 56 },   { 0, COND_NONE, 60 },
@@ -178,21 +180,16 @@ void cpu_reset(void)
 {
     memset(&cpu, 0, sizeof(struct lc3cpu));
 
-    cpu.state = 18;         /* start in first FETCH state */
-    reg_w(R_6, A_SSP);      /* R6 <- Supervisor Stack Pointer */
-    SET_Z(1);               /* set Zero flag */
-    SET_CE(1);              /* set Clock Enable bit */
-
-    /* "Hack" to get the CPU to start executing OS code.
-       TODO: reset vector? could do something like jump to the address stored at
-       M[0]
-    */
-    cpu.pc = 0x0400;
+    cpu.state = INITIAL_STATE;
+    cpu.pc = A_START;
+    reg_w(R_6, A_SSP);
+    SET_Z(1);
+    SET_CE(1);
 }
 
 void cpu_tick(void)
 {
-    /* Go to next state */
+    /* Execute current state operation and determine next state. */
     state_table[cpu.state]();
     cpu.state = next_state();
 }
@@ -270,28 +267,28 @@ static inline void reg_w(int n, lc3word data)
  */
 inline int next_state(void)
 {
-    struct ctl_state ctl;
+    struct micro_op m_op;
     int next_state;
 
-    ctl = ctl_rom[cpu.state];
-    if (ctl.ird) {
+    m_op = ctl_rom[cpu.state];
+    if (m_op.ird) {
         return OPCODE();
     }
 
-    next_state = ctl.j;
-    if (ctl.cond == COND_MEM && mem_ready()) {
+    next_state = m_op.j;
+    if (m_op.cond == COND_MEM && mem_ready()) {
         next_state |= STATE_MASK_MEM;
     }
-    if ( ctl.cond == COND_BR && cpu.ben) {
+    if (m_op.cond == COND_BR && cpu.ben) {
         next_state |= STATE_MASK_BR;
     }
-    if (ctl.cond == COND_ADDR && IR_11()) {
+    if (m_op.cond == COND_ADDR && IR_11()) {
         next_state |= STATE_MASK_ADDR;
     }
-    if ( ctl.cond == COND_PRIV && PRIVILEGE()) {
+    if (m_op.cond == COND_PRIV && PRIVILEGE()) {
         next_state |= STATE_MASK_PRIV;
     }
-    if (ctl.cond == COND_INT && cpu.intf) {
+    if (m_op.cond == COND_INT && cpu.intf) {
         next_state |= STATE_MASK_INT;
     }
 
