@@ -31,11 +31,13 @@
  */
 #define IRQ_BASE        0x80
 
-#define PIC_CMD_IRR_R   0x01
-#define PIC_CMD_ISR_R   0x02
-#define PIC_CMD_IMR_R   0x03
-#define PIC_CMD_IMR_W   0x04
-
+/*
+ * PIC command numbers.
+ */
+#define PIC_CMD_IRR_R   0x01    /* read IRR */
+#define PIC_CMD_ISR_R   0x02    /* read ISR */
+#define PIC_CMD_IMR_R   0x03    /* read IMR */
+#define PIC_CMD_IMR_W   0x04    /* write IMR */
 
 /*
  * PIC state.

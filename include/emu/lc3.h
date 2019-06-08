@@ -48,6 +48,7 @@
  */
 #define A_TVT           0x0000  /* Trap Vector Table */
 #define A_IVT           0x0200  /* Interrupt Vector Table */
+#define A_START         0x0400  /* initial PC value (start of execution) */
 #define A_SSP           0x3000  /* default supervisor stack pointer */
 #define A_USP           0xFE00  /* default user stack pointer */
 #define A_KBSR          0xFE00  /* keyboard status register */
