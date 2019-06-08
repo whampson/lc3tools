@@ -22,6 +22,16 @@
 #ifndef __LC3TOOLS_H
 #define __LC3TOOLS_H
 
+#ifndef _WIN32
+/* we'll assume POSIX... */
+#include <termios.h>
+#include <unistd.h>
+#include <sys/select.h>
+#else
+#include <conio.h>
+#include <windows.h>
+#endif
+
 /*
  * Debug build switch.
  * Uncomment to build lc3tools with debugging info.
