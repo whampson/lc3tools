@@ -22,9 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/select.h>
 
+#include <lc3tools.h>
 #include <kbd.h>
 #include <pic.h>
 
@@ -36,8 +35,8 @@
 
 static struct lc3kbd kbd;
 
-static int kbhit(void);
-static int getch(void);
+static int kbd_hit(void);
+static int read_char(void);
 
 void kbd_reset(void)
 {
@@ -51,8 +50,8 @@ void kbd_tick(void)
 {
     unsigned char c;
 
-    if (kbhit()) {
-        c = getch();
+    if (kbd_hit()) {
+        c = read_char();
         if (c == 3) {
             printf("CTRL+C pressed!\r\n");
             exit(127);
@@ -86,8 +85,9 @@ void set_kbdr(lc3word value)
     kbd.kbdr = value;
 }
 
-static int kbhit(void)
+static int kbd_hit(void)
 {
+#ifndef _WIN32
     struct timeval tv = { 0L, 0L };
     fd_set fds;
 
@@ -95,10 +95,14 @@ static int kbhit(void)
     FD_SET(STDIN_FILENO, &fds);
 
     return select(1, &fds, NULL, NULL, &tv);
+#else
+    return _kbhit();
+#endif
 }
 
-static int getch(void)
+static int read_char(void)
 {
+#ifndef _WIN32
     int r;
     unsigned char c;
 
@@ -107,4 +111,7 @@ static int getch(void)
     }
 
     return c;
+#else
+    return _getch();
+#endif
 }
