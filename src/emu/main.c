@@ -23,9 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 
+#include <lc3tools.h>
 #include <lc3.h>
 #include <cpu.h>
 #include <mem.h>
@@ -87,8 +86,6 @@
  *   --version
  */
 
-static struct termios orig_termios;
-
 static inline void dev_tick(void);
 
 static void write_word(lc3word addr, lc3word data);
@@ -96,8 +93,15 @@ static void fill_mem(lc3word addr, const lc3word *data, int n);
 
 static void usage(const char *prog_name);
 
-static void set_nonblock(void);
-static void reset_terminal(void);
+static void enter_raw_mode(void);
+static void leave_raw_mode(void);
+static void register_hooks(void);
+
+#ifndef _WIN32
+static struct termios orig_termios;
+#else
+static DWORD fdwSaveOldMode;
+#endif
 
 #define OS_ADDR         0x0400
 #define DISP_ISR        0x0500
@@ -178,8 +182,8 @@ const lc3word isr4_code[] =
 
 int main(int argc, char *argv[])
 {
-    /* Put terminal into raw mode */
-    set_nonblock();
+    register_hooks();
+    enter_raw_mode();
 
     /* Reset machine state */
     mem_reset();
@@ -234,20 +238,54 @@ static void usage(const char *prog_name)
     printf("Run '%s --help' for options.\n", prog_name);
 }
 
-static void set_nonblock(void)
+static void enter_raw_mode(void)
 {
+#ifndef _WIN32
     struct termios term;
 
     tcgetattr(STDIN_FILENO, &orig_termios);
     memcpy(&term, &orig_termios, sizeof(struct termios));
 
-    atexit(reset_terminal);
     cfmakeraw(&term);
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
+#else
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+
+    if (hStdin == INVALID_HANDLE_VALUE)
+    {
+        printf("GetStdHandle (%d)\r\n", GetLastError());
+        exit(127);
+    }
+    if (!GetConsoleMode(hStdin, &fdwSaveOldMode))
+    {
+        printf("GetConsoleMode (%d)\r\n", GetLastError());
+        exit(127);
+    }
+    if (!SetConsoleMode(hStdin, 0))
+    {
+        printf("SetConsoleMode (%d)\r\n", GetLastError());
+        exit(127);
+    }
+#endif
 }
 
-static void reset_terminal(void)
+static void leave_raw_mode(void)
 {
-    cpu_dumpregs();
+#ifndef _WIN32
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+#else
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+
+    if (!SetConsoleMode(hStdin, fdwSaveOldMode))
+    {
+        printf("SetConsoleMode (%d)\r\n", GetLastError());
+        exit(127);
+    }
+#endif
+}
+
+static void register_hooks()
+{
+    atexit(leave_raw_mode);
+    atexit(cpu_dumpregs);
 }
