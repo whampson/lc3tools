@@ -28,6 +28,8 @@
  */
 #define DEBUG 1
 
+#define TEST_DIR    "../test"
+
 /*
  * File separator character.
  */
