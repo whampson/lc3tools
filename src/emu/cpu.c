@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <lc3.h>
 #include <cpu.h>
 #include <state.h>
 #include <mem.h>

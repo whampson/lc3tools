@@ -43,13 +43,19 @@ void disp_reset(void)
 
 void disp_tick(void)
 {
+    unsigned char c;
+
     if (disp.c > 0) {
         disp.c--;
     }
 
     if (!RD() && disp.c == 0) {
-        putc(disp.ddr & 0xFF, stdout);
-        fflush(stdout);
+        c = disp.ddr & 0xFF;
+        if (c != '\0')
+        {
+            putc(c, stdout);
+            fflush(stdout);
+        }
         SET_RD(1);
     }
 

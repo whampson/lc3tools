@@ -75,8 +75,8 @@
  * These values are somewhat arbitrary, so tweak to your liking! Don't go below
  * 1 because it might cause problems.
  */
-#define MEM_DELAY       300
-#define DISP_DELAY      5000
+#define MEM_DELAY       1
+#define DISP_DELAY      1
 
 /*
  * LC-3 data types.
