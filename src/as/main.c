@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     }
 
     /* output and free token list */
-    printf("ln:pos\tlen\ttype\t\ttoken\n");
+    printf(" ln:pos\tlen\ttype\t\ttoken\n");
     curr = tok_list;
     while (curr != NULL)
     {
@@ -289,6 +289,7 @@ static int is_delim(char c)
         case ';':
         case ' ':
         case '\t':
+        case '\r':
         case '\n':
         case '\0':
             return 1;
