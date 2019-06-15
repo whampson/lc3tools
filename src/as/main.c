@@ -9,10 +9,13 @@
 #define LINE_BUFFER_SIZE    512
 #define TOKEN_BUFFER_SIZE   64
 
+#define ARRLEN(a)   (sizeof(a)/sizeof(a[0]))
+
 enum token_type
 {
     T_LABEL,
-    T_MNEMONIC,
+    T_OPCODE,
+    T_PSEUDO_OP,
     T_REGISTER,
     T_IMMEDIATE
     // TODO: string literal
@@ -41,8 +44,27 @@ struct source_file
     int line_len;
 };
 
+const char * const OPCODES[] =
+{
+    // NOTE: BR-BRnzp not included in this table
+    "ADD",  "AND",  "JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
+    "LEA",  "NOT",  "RET",  "RTI",  "LSHF", "RSHFL","RSHFA","STB",
+    "STW",  "STI",  "TRAP", "XOR",
+
+    "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP"
+};
+
+const char * const PSEUDO_OPS[] =
+{
+    ".BLKW",".END", ".FILL",".ORIG",".STRINGZ"
+};
+
 static struct token * read_token(struct source_file *src);
 static int read_line(struct source_file *src);
+static int try_read_constant(const char *s, int base, int *out);
+static void s_toupper(char *s);
+static int is_delim(char c);
+static int is_opcode(const char *tok);
 
 int main(int argc, char *argv[])
 {
@@ -90,41 +112,30 @@ int main(int argc, char *argv[])
         switch (curr->type)
         {
             case T_LABEL:
-                printf("LABEL\t\t'%s'\n", curr->raw_str);
+                printf("LABEL\t\t");
                 break;
-            case T_MNEMONIC:
-                printf("MNEMONIC\t'%s'\n", curr->cap_str);
+            case T_OPCODE:
+                printf("OPCODE\t\t");
+                break;
+            case T_PSEUDO_OP:
+                printf("PSEUDO_OP\t");
                 break;
             case T_REGISTER:
-                printf("REG\t\t%d\n", curr->val);
+                printf("REGISTER\t");
                 break;
             case T_IMMEDIATE:
-                printf("IMM\t\t%d\n", curr->val);
+                printf("IMMEDIATE\t");
                 break;
             default:
-                printf("UNKNOWN\t'%s'\n", curr->raw_str);
+                printf("UNKNOWN\t");
                 break;
         }
+
+        printf("'%s'\n", curr->cap_str);
 
         prev = curr;
         curr = curr->next;
         free(prev);
-    }
-
-    return 0;
-}
-
-int is_delim(char c)
-{
-    switch (c)
-    {
-        case ',':
-        case ';':
-        case ' ':
-        case '\t':
-        case '\n':
-        case '\0':
-            return 1;
     }
 
     return 0;
@@ -199,11 +210,37 @@ start_over:
             goto next_line;
     }
 
+    /* extract bookkeeping information */
     *tok_tail = '\0';
     token->len = (tok_tail - tok_head);
-    token->type = T_LABEL;
-    strncpy(token->raw_str, tok_head, TOKEN_BUFFER_SIZE);
     src->line_pos += token->len + 1;
+    strncpy(token->raw_str, tok_head, TOKEN_BUFFER_SIZE);
+    strncpy(token->cap_str, tok_head, TOKEN_BUFFER_SIZE);
+    s_toupper(token->cap_str);
+
+    /* determine token type */
+    if (is_opcode(token->cap_str))
+    {
+        token->type = T_OPCODE;
+        return token;
+    }
+    switch (*tok_head)
+    {
+        case '.':
+            token->type = T_PSEUDO_OP;
+            break;
+        case 'R':
+            token->type = T_REGISTER;
+            break;
+        case '#':
+        case 'x':
+        case 'X':
+            token->type = T_IMMEDIATE;
+            break;
+        default:
+            token->type = T_LABEL;
+            break;
+    }
 
     return token;
 }
@@ -220,4 +257,77 @@ static int read_line(struct source_file *src)
     src->line_len = (int) strlen(src->line);
 
     return src->line_len;
+}
+
+static int try_read_constant(const char *s, int base, int *out)
+{
+    char *end;
+
+    *out = strtol(s, &end, base);
+    if (s == end)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+static void s_toupper(char *s)
+{
+    while (*s != '\0')
+    {
+        *s = toupper(*s);
+        s++;
+    }
+}
+
+static int is_delim(char c)
+{
+    switch (c)
+    {
+        case ',':
+        case ';':
+        case ' ':
+        case '\t':
+        case '\n':
+        case '\0':
+            return 1;
+    }
+
+    return 0;
+}
+
+static int is_opcode(const char *tok)
+{
+    int result;
+
+    /* BR and friends */
+    if (strncmp(tok, "BR", 2) == 0)
+    {
+        result= 1;
+        tok += 2;
+
+        while (*tok != '\0')
+        {
+            if (*tok != 'N' && *tok != 'Z' && *tok != 'P')
+            {
+                result = 0;
+                break;
+            }
+            tok++;
+        }
+
+        return result;
+    }
+
+    /* all else */
+    for (int i = 0; i < ARRLEN(OPCODES); i++)
+    {
+        if (strcmp(tok, OPCODES[i]) == 0)
+        {
+            return 1;
+        }
+    }
+
+    return 0;
 }
