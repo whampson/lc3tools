@@ -224,7 +224,7 @@ start_over:
         token->type = T_OPCODE;
         return token;
     }
-    switch (*tok_head)
+    switch (toupper(*tok_head))
     {
         case '.':
             token->type = T_PSEUDO_OP;
@@ -233,7 +233,6 @@ start_over:
             token->type = T_REGISTER;
             break;
         case '#':
-        case 'x':
         case 'X':
             token->type = T_IMMEDIATE;
             break;
