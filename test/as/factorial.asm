@@ -22,7 +22,7 @@
 
 ORIGIN 4x0000
 
-SEGMENT CodeSegment:
+; SEGMENT CodeSegment:                  ; TODO: support segments?
 INIT:
     ; Load constants used throughout the program.
     LDR R1, R0, NEG_ONE
