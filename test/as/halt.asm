@@ -1,4 +1,4 @@
-ORIGIN 4x3000
+.ORIGIN 0x3000
 
 MAIN:
     AND     R3, R3, R3
@@ -22,5 +22,5 @@ HALT:
 _HALT_LOOP:
     BR _HALT_LOOP
 
-CLOCK_EN:   DATA2   4x8000
-MCR:        DATA2   4xFFFE
+CLOCK_EN:   .FILL   0x8000
+MCR:        .FILL   0xFFFE

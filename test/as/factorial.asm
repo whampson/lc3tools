@@ -20,9 +20,9 @@
 ;   * R0 contains a value of 0 upon entry.
 ;===============================================================================
 
-ORIGIN 4x0000
+.ORIGIN 0x0000
 
-; SEGMENT CodeSegment:                  ; TODO: support segments?
+; .SEGMENT CodeSegment:                  ; TODO: support segments?
 INIT:
     ; Load constants used throughout the program.
     LDR R1, R0, NEG_ONE
@@ -68,10 +68,10 @@ HALT:
 
 
 ; Data input/output
-INPUT:      DATA2   5
-RESULT:     DATA2   0
+INPUT:      .FILL   5
+RESULT:     .FILL   0
 
 ; Constants
-POS_ONE:    DATA2   1
-NEG_ONE:    DATA2  -1
-NEG_TWO:    DATA2  -2
+POS_ONE:    .FILL   1
+NEG_ONE:    .FILL  -1
+NEG_TWO:    .FILL  -2
