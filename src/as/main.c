@@ -6,195 +6,224 @@
 #include <lc3as.h>
 #include <lc3tools.h>
 
-#define LINE_BUFFER_SIZE 256
+#define LINE_BUFFER_SIZE    512
+#define TOKEN_BUFFER_SIZE   64
+
+enum token_type
+{
+    T_LABEL,
+    T_MNEMONIC,
+    T_REGISTER,
+    T_IMMEDIATE
+};
+
+struct token
+{
+    struct token *next;
+
+    int line;
+    int pos;
+    int len;
+
+    enum token_type type;
+    char raw_str[TOKEN_BUFFER_SIZE];
+    char cap_str[TOKEN_BUFFER_SIZE];
+    int val;
+};
 
 struct source_file
 {
     FILE *file;
     char line[LINE_BUFFER_SIZE];
-    size_t line_len;
-    size_t line_num;
-    size_t line_pos;
+    int line_num;
+    int line_pos;
+    int line_len;
 };
 
-int read_line(struct source_file *src)
-{
-    src->line_num++;
-    if (feof(src->file) || fgets(src->line, LINE_BUFFER_SIZE, src->file) == 0)
-    {
-        return -1;
-    }
-
-    src->line_len = strlen(src->line);
-    src->line_pos = 0;
-
-    return src->line_len;
-}
-
-int get_opcode(char *mnemonic, int *opcode, int *operand_count)
-{
-    if (strcasecmp(mnemonic, "BR") == 0)
-    {
-        // TODO: nzp
-        *opcode = 0x0;
-        *operand_count = 1;
-        return 1;
-    }
-    else if (strcasecmp(mnemonic, "ADD") == 0)
-    {
-        *opcode = 0x1;
-        *operand_count = 3;
-        return 1;
-    }
-    else if (strcasecmp(mnemonic, "RTI") == 0)
-    {
-        *opcode = 0x8;
-        *operand_count = 0;
-        return 1;
-    }
-
-    *operand_count = 0;
-    return 0;
-}
+static struct token * read_token(struct source_file *src);
+static int read_line(struct source_file *src);
 
 int main(int argc, char *argv[])
 {
     struct source_file src;
-    char *tok_head;
-    char *tok_tail;
-    char *mnemonic;
-    char *label;
-    char *operands[3];
-    int opcode;
-    int operand_count;
-    int operand_idx;
-    int label_seen;
-    int mnemonic_seen;
-    int non_whitespace_seen;
-    int comment_seen;
-    int valid_mnemonic;
+
+    struct token *tok_list;
+    struct token *prev;
+    struct token *curr;
+
+    if (argc < 2)
+    {
+        fprintf(stderr, "error: missing source file\n");
+        return 1;
+    }
 
     memset(&src, 0, sizeof(struct source_file));
-    src.file = fopen(TEST_DIR"/astest2.asm", "rb");
+    src.file = fopen(argv[1], "rb");
     if (src.file == NULL)
     {
+        fprintf(stderr, "error: failed to open source file\n");
         return 2;
     }
 
-    while (read_line(&src) != -1)
+    if (read_line(&src) == -1)
     {
-        printf(">> line %zu...\n", src.line_num);
-
-        operand_count = 0;
-        operand_idx = 0;
-        label_seen = 0;
-        mnemonic_seen = 0;
-        non_whitespace_seen = 0;
-        comment_seen = 0;
-        valid_mnemonic = 0;
-
-        tok_head = src.line;
-        tok_tail = tok_head;
-
-        while (src.line_pos <= src.line_len)
-        {
-            switch (*tok_tail)
-            {
-                case '\r':
-                {
-                    goto next_char;
-                }
-
-                case ',':
-                {
-                    *tok_tail = '\0';
-                    operands[operand_idx++] = tok_head;
-                    tok_head = tok_tail + 1;
-                    goto next_char;
-                }
-
-                case '\0':
-                case '\n':
-                case '\t':
-                case ' ':
-                {
-                    if (comment_seen)
-                    {
-                        goto next_char;
-                    }
-                    if (!non_whitespace_seen)
-                    {
-                        tok_head++;
-                        goto next_char;
-                    }
-
-                    non_whitespace_seen = 0;
-                    *tok_tail = '\0';
-                    if (!mnemonic_seen)
-                    {
-                        // Mnemonic
-                        if (get_opcode(tok_head, &opcode, &operand_count))
-                        {
-                            mnemonic_seen = 1;
-                            mnemonic = tok_head;
-                        }
-                    }
-                    if (!comment_seen && mnemonic_seen && operand_idx == operand_count - 1)
-                    {
-                        // Operand
-                        operands[operand_idx++] = tok_head;
-                    }
-                    if (!mnemonic_seen && !label_seen)
-                    {
-                        // Label
-                        label_seen = 1;
-                        label = tok_head;
-                    }
-                    tok_head = tok_tail + 1;
-                    goto next_char;
-                }
-
-                case ';':
-                {
-                    comment_seen = 1;
-                    goto next_char;
-                }
-
-                default:
-                {
-                    if (comment_seen)
-                    {
-                        goto next_char;
-                    }
-
-                    // TODO: restrict allowed characters
-                    non_whitespace_seen = 1;
-                    goto next_char;
-                }
-            }
-
-        next_char:
-            tok_tail++;
-            src.line_pos++;
-        }
-
-    next_line:
-        if (label_seen)
-        {
-            printf("LABEL = '%s'\n", label);
-        }
-        if (mnemonic_seen)
-        {
-            printf("MNEMONIC = '%s'\n", mnemonic);
-        }
-        for (int i = 0; i < operand_count; i++)
-        {
-            printf("OPERAND%d = '%s'\n", i, operands[i]);
-        }
+        fprintf(stderr, "error: failed to read source file\n");
+        return 2;
     }
 
-    printf("Hit end of file! (line %zu)\n", src.line_num);
-    fclose(src.file);
+    prev = NULL;
+    while ((curr = read_token(&src)) != NULL)
+    {
+        printf("(%d:%d, %d): ", curr->line, curr->pos, curr->len);
+        switch (curr->type)
+        {
+            case T_LABEL:
+                printf("<LABEL> %s\n", curr->raw_str);
+                break;
+            case T_MNEMONIC:
+                printf("<MNEMONIC> %s\n", curr->cap_str);
+                break;
+            case T_REGISTER:
+                printf("<REGISTER> %d\n", curr->val);
+                break;
+            case T_IMMEDIATE:
+                printf("<IMMEDIATE> %d\n", curr->val);
+                break;
+            default:
+                printf("<UNKNOWN> %s\n", curr->raw_str);
+                break;
+        }
+
+        if (prev == NULL)
+        {
+            tok_list = curr;
+            prev = tok_list;
+        }
+        else
+        {
+            prev->next = curr;
+        }
+        curr->next = NULL;
+    }
+
+    curr = tok_list;
+    while (curr != NULL)
+    {
+        // printf("(%d, %d): ", curr->line, curr->pos);
+        // switch (curr->type)
+        // {
+        //     case T_LABEL:
+        //         printf("<LABEL> %s\n", curr->raw_str);
+        //         break;
+        //     case T_MNEMONIC:
+        //         printf("<MNEMONIC> %s\n", curr->cap_str);
+        //         break;
+        //     case T_REGISTER:
+        //         printf("<REGISTER> %d\n", curr->val);
+        //         break;
+        //     case T_IMMEDIATE:
+        //         printf("<IMMEDIATE> %d\n", curr->val);
+        //         break;
+        //     default:
+        //         printf("<UNKNOWN> %s\n", curr->raw_str);
+        //         break;
+        // }
+
+        prev = curr;
+        curr = curr->next;
+        free(prev);
+    }
 
     return 0;
+}
+
+int is_delim(char c)
+{
+    switch (c)
+    {
+        case ' ':
+        case ',':
+        case ';':
+        case '\n':
+        case '\0':
+            return 1;
+    }
+
+    return 0;
+}
+
+static struct token * read_token(struct source_file *src)
+{
+    struct token *token; /* I feel alright mamma I'm not jokin' */
+    char *tok_head;
+    char *tok_tail;
+
+    token = (struct token *) malloc(sizeof(struct token));
+    if (token == NULL)
+    {
+        return NULL;
+    }
+    memset(token, 0, sizeof(struct token));
+
+    tok_head = &src->line[src->line_pos];
+    tok_tail = tok_head;
+
+start:
+    /* skip leading whitespace */
+    while (isspace(*tok_head) || *tok_head == '\0')
+    {
+        if (src->line_pos >= src->line_len)
+        {
+            if (read_line(src) == -1)
+            {
+                printf("Hit end of file! (line %d)\n", src->line_num);
+                free(token);
+                return NULL;
+            }
+            tok_head = src->line;
+            continue;
+        }
+        src->line_pos++;
+        tok_head++;
+    }
+
+    tok_tail = tok_head;
+    token->line = src->line_num;
+    token->pos = src->line_pos + 1;
+
+    while (!is_delim(*tok_tail))
+    {
+        tok_tail++;
+    }
+
+    // switch (*tok_tail)
+    // {
+    //     case '\0':
+    //         src->line_pos = src->line_len;
+    //         goto start;
+    // }
+
+    *tok_tail = '\0';
+    token->len = (tok_tail - tok_head);
+    token->type = T_LABEL;
+    strcpy(token->raw_str, tok_head);
+    src->line_pos += token->len;
+
+    return token;
+}
+
+static int read_line(struct source_file *src)
+{
+    src->line_num++;
+    if (feof(src->file) || fgets(src->line, LINE_BUFFER_SIZE, src->file) == NULL)
+    {
+        return -1;
+    }
+
+    // printf(">> %s", src->line);
+
+    src->line_pos = 0;
+    src->line_len = (int) strlen(src->line);
+
+    return src->line_len;
 }
