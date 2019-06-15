@@ -5,7 +5,7 @@ An implementation of the LC-3 instruction set architecture and assorted tools.
 | Name        |  Status       | Notes                     |
 | ----------- | ------------- | ------------------------- |
 | `lc3emu`    | In-progress   | Emulator/Debugger         |
-| `lc3as`     | Planned       | Assembler                 |
+| `lc3as`     | In-progress   | Assembler                 |
 | `lc3disas`  | Planned       | Disassembler              |
 | `lc3cc`     | Planned       | C Compiler                |
 
