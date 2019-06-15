@@ -15,6 +15,7 @@ enum token_type
     T_MNEMONIC,
     T_REGISTER,
     T_IMMEDIATE
+    // TODO: string literal
 };
 
 struct token
@@ -65,69 +66,45 @@ int main(int argc, char *argv[])
         return 2;
     }
 
-    if (read_line(&src) == -1)
-    {
-        fprintf(stderr, "error: failed to read source file\n");
-        return 2;
-    }
-
+    /* build token list */
     prev = NULL;
     while ((curr = read_token(&src)) != NULL)
     {
-        printf("(%d:%d, %d): ", curr->line, curr->pos, curr->len);
-        switch (curr->type)
-        {
-            case T_LABEL:
-                printf("<LABEL> %s\n", curr->raw_str);
-                break;
-            case T_MNEMONIC:
-                printf("<MNEMONIC> %s\n", curr->cap_str);
-                break;
-            case T_REGISTER:
-                printf("<REGISTER> %d\n", curr->val);
-                break;
-            case T_IMMEDIATE:
-                printf("<IMMEDIATE> %d\n", curr->val);
-                break;
-            default:
-                printf("<UNKNOWN> %s\n", curr->raw_str);
-                break;
-        }
-
         if (prev == NULL)
         {
             tok_list = curr;
             prev = tok_list;
+            continue;
         }
-        else
-        {
-            prev->next = curr;
-        }
-        curr->next = NULL;
+
+        prev->next = curr;
+        prev = curr;
     }
 
+    /* output and free token list */
+    printf("ln:pos\tlen\ttype\t\ttoken\n");
     curr = tok_list;
     while (curr != NULL)
     {
-        // printf("(%d, %d): ", curr->line, curr->pos);
-        // switch (curr->type)
-        // {
-        //     case T_LABEL:
-        //         printf("<LABEL> %s\n", curr->raw_str);
-        //         break;
-        //     case T_MNEMONIC:
-        //         printf("<MNEMONIC> %s\n", curr->cap_str);
-        //         break;
-        //     case T_REGISTER:
-        //         printf("<REGISTER> %d\n", curr->val);
-        //         break;
-        //     case T_IMMEDIATE:
-        //         printf("<IMMEDIATE> %d\n", curr->val);
-        //         break;
-        //     default:
-        //         printf("<UNKNOWN> %s\n", curr->raw_str);
-        //         break;
-        // }
+        printf("% 3d:%d\t%d\t", curr->line, curr->pos, curr->len);
+        switch (curr->type)
+        {
+            case T_LABEL:
+                printf("LABEL\t\t'%s'\n", curr->raw_str);
+                break;
+            case T_MNEMONIC:
+                printf("MNEMONIC\t'%s'\n", curr->cap_str);
+                break;
+            case T_REGISTER:
+                printf("REG\t\t%d\n", curr->val);
+                break;
+            case T_IMMEDIATE:
+                printf("IMM\t\t%d\n", curr->val);
+                break;
+            default:
+                printf("UNKNOWN\t'%s'\n", curr->raw_str);
+                break;
+        }
 
         prev = curr;
         curr = curr->next;
@@ -141,9 +118,10 @@ int is_delim(char c)
 {
     switch (c)
     {
-        case ' ':
         case ',':
         case ';':
+        case ' ':
+        case '\t':
         case '\n':
         case '\0':
             return 1;
@@ -157,6 +135,7 @@ static struct token * read_token(struct source_file *src)
     struct token *token; /* I feel alright mamma I'm not jokin' */
     char *tok_head;
     char *tok_tail;
+    int tok_seen;
 
     token = (struct token *) malloc(sizeof(struct token));
     if (token == NULL)
@@ -165,24 +144,31 @@ static struct token * read_token(struct source_file *src)
     }
     memset(token, 0, sizeof(struct token));
 
+
+    if (src->line_pos >= src->line_len)
+    {
+    next_line:
+        if (read_line(src) == -1)
+        {
+            printf("Hit end of file! (line %d)\n", src->line_num);
+            free(token);
+            return NULL;
+        }
+    }
+
+start_over:
+    tok_seen = 0;
     tok_head = &src->line[src->line_pos];
     tok_tail = tok_head;
 
-start:
     /* skip leading whitespace */
-    while (isspace(*tok_head) || *tok_head == '\0')
+    while (isspace(*tok_head))
     {
         if (src->line_pos >= src->line_len)
         {
-            if (read_line(src) == -1)
-            {
-                printf("Hit end of file! (line %d)\n", src->line_num);
-                free(token);
-                return NULL;
-            }
-            tok_head = src->line;
-            continue;
+            goto next_line;
         }
+
         src->line_pos++;
         tok_head++;
     }
@@ -191,23 +177,33 @@ start:
     token->line = src->line_num;
     token->pos = src->line_pos + 1;
 
+    /* read-in the token */
     while (!is_delim(*tok_tail))
     {
+        tok_seen = 1;
         tok_tail++;
     }
 
-    // switch (*tok_tail)
-    // {
-    //     case '\0':
-    //         src->line_pos = src->line_len;
-    //         goto start;
-    // }
+    /* handle special delimiter cases */
+    switch (*tok_tail)
+    {
+        case ',':
+            if (!tok_seen)
+            {
+                src->line_pos++;
+                goto start_over;
+            }
+            break;
+        case ';':
+        case '\0':
+            goto next_line;
+    }
 
     *tok_tail = '\0';
     token->len = (tok_tail - tok_head);
     token->type = T_LABEL;
-    strcpy(token->raw_str, tok_head);
-    src->line_pos += token->len;
+    strncpy(token->raw_str, tok_head, TOKEN_BUFFER_SIZE);
+    src->line_pos += token->len + 1;
 
     return token;
 }
@@ -219,8 +215,6 @@ static int read_line(struct source_file *src)
     {
         return -1;
     }
-
-    // printf(">> %s", src->line);
 
     src->line_pos = 0;
     src->line_len = (int) strlen(src->line);
