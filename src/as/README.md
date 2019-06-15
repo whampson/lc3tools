@@ -1,6 +1,7 @@
 # Assembler Information
 ## Opcodes
 The table below lists all opcodes and their accepted operand formats.
+
 | Opcode Format         | Function                  | RTL                                           |
 |-----------------------|---------------------------|-----------------------------------------------|
 | `ADD reg,reg,reg`     | Signed addition           | `reg <- reg + reg; setcc`                     |
