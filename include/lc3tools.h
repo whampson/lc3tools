@@ -49,6 +49,11 @@
 #define FILE_SEPARATOR   '/'
 #endif
 
+/*
+ * Useful macros.
+ */
+#define ARRLEN(a)   (sizeof(a)/sizeof(a[0]))
+
 
 /* ===== Functions defined in src/lib/path.c ===== */
 
