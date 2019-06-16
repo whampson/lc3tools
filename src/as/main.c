@@ -6,19 +6,19 @@
 #include <lc3tools.h>
 #include <as/lc3as.h>
 
-#define LINE_BUFFER_SIZE    512
-#define TOKEN_BUFFER_SIZE   64
+#define LINE_BUFFER_SIZE    1024
 
 #define ARRLEN(a)   (sizeof(a)/sizeof(a[0]))
 
 enum token_type
 {
-    T_LABEL,
-    T_OPCODE,
-    T_PSEUDO_OP,
-    T_REGISTER,
-    T_IMMEDIATE
-    // TODO: string literal
+    T_LABEL_REF,    /* label reference */
+    T_LABEL_DEC,    /* label declaration */
+    T_OPCODE,       /* instruction mnemonic */
+    T_PSEUDO_OP,    /* pseudo-opcode */
+    T_REGISTER,     /* general purpose register */
+    T_LITERAL,      /* integer literal */
+    T_ASCII         /* ASCII string literal */  /* TODO: escape chars */
 };
 
 struct token
@@ -30,8 +30,8 @@ struct token
     int len;
 
     enum token_type type;
-    char raw_str[TOKEN_BUFFER_SIZE];
-    char cap_str[TOKEN_BUFFER_SIZE];
+    char raw_str[LINE_BUFFER_SIZE];
+    char cap_str[LINE_BUFFER_SIZE];
     int val;
 };
 
@@ -46,17 +46,17 @@ struct source_file
 
 const char * const OPCODES[] =
 {
-    // NOTE: BR-BRnzp not included in this table
-    "ADD",  "AND",  "JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
+    "ADD",  "AND",  "BR",   "BRN",  "BRZ",  "BRP",  "BRNZ", "BRNP",
+    "BRZP", "BRNZP","JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
     "LEA",  "NOT",  "RET",  "RTI",  "LSHF", "RSHFL","RSHFA","STB",
     "STW",  "STI",  "TRAP", "XOR",
 
-    "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP"
+    /* "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP" */
 };
 
 const char * const PSEUDO_OPS[] =
 {
-    ".BLKW",".END", ".FILL",".ORIG",".STRINGZ"
+    ".ASCII", ".BLKW", ".FILL", ".ORIGIN", /* ".SEGMENT" */
 };
 
 static struct token * read_token(struct source_file *src);
@@ -111,8 +111,11 @@ int main(int argc, char *argv[])
         printf("% 3d:%d\t%d\t", curr->line, curr->pos, curr->len);
         switch (curr->type)
         {
-            case T_LABEL:
-                printf("LABEL\t\t");
+            case T_LABEL_REF:
+                printf("LABEL_REF\t");
+                break;
+            case T_LABEL_DEC:
+                printf("LABEL_DEC\t");
                 break;
             case T_OPCODE:
                 printf("OPCODE\t\t");
@@ -123,11 +126,11 @@ int main(int argc, char *argv[])
             case T_REGISTER:
                 printf("REGISTER\t");
                 break;
-            case T_IMMEDIATE:
-                printf("IMMEDIATE\t");
+            case T_LITERAL:
+                printf("LITERAL\t\t");
                 break;
-            default:
-                printf("UNKNOWN\t");
+            case T_ASCII:
+                printf("ASCII\t\t");
                 break;
         }
 
@@ -146,7 +149,8 @@ static struct token * read_token(struct source_file *src)
     struct token *token; /* I feel alright mamma I'm not jokin' */
     char *tok_head;
     char *tok_tail;
-    int tok_seen;
+    int is_reading_tok;
+    int is_reading_ascii;
 
     token = (struct token *) malloc(sizeof(struct token));
     if (token == NULL)
@@ -168,9 +172,10 @@ static struct token * read_token(struct source_file *src)
     }
 
 start_over:
-    tok_seen = 0;
     tok_head = &src->line[src->line_pos];
     tok_tail = tok_head;
+    is_reading_tok = 0;
+    is_reading_ascii = 0;
 
     /* skip leading whitespace */
     while (isspace(*tok_head))
@@ -189,20 +194,41 @@ start_over:
     token->pos = src->line_pos + 1;
 
     /* read-in the token */
+read_chars:
     while (!is_delim(*tok_tail))
     {
-        tok_seen = 1;
+        is_reading_tok = 1;
         tok_tail++;
+    }
+
+    if (is_reading_ascii && *tok_tail != '"')
+    {
+        tok_tail++;
+        goto read_chars;
     }
 
     /* handle special delimiter cases */
     switch (*tok_tail)
     {
         case ',':
-            if (!tok_seen)
+            if (!is_reading_tok)
             {
                 src->line_pos++;
                 goto start_over;
+            }
+            break;
+        case ':':
+            token->type = T_LABEL_DEC;
+            break;
+        case '"':
+            if (!is_reading_ascii)
+            {
+                token->type = T_ASCII;
+                src->line_pos++;
+                tok_head++;
+                tok_tail++;
+                is_reading_ascii = 1;
+                goto read_chars;
             }
             break;
         case ';':
@@ -210,37 +236,46 @@ start_over:
             goto next_line;
     }
 
-    /* extract bookkeeping information */
+    /* extract token string and length */
     *tok_tail = '\0';
     token->len = (tok_tail - tok_head);
-    src->line_pos += token->len + 1;
-    strncpy(token->raw_str, tok_head, TOKEN_BUFFER_SIZE);
-    strncpy(token->cap_str, tok_head, TOKEN_BUFFER_SIZE);
+    strncpy(token->raw_str, tok_head, token->len);
+    strncpy(token->cap_str, tok_head, token->len);
     s_toupper(token->cap_str);
+    src->line_pos += token->len + 1;
+
+    if (token->type == T_LABEL_DEC || token->type == T_ASCII)
+    {
+        goto done;
+    }
 
     /* determine token type */
     if (is_opcode(token->cap_str))
     {
         token->type = T_OPCODE;
-        return token;
+        goto done;
     }
     switch (toupper(*tok_head))
     {
         case '.':
             token->type = T_PSEUDO_OP;
-            break;
+            goto done;
         case 'R':
             token->type = T_REGISTER;
-            break;
-        case '#':
-        case 'X':
-            token->type = T_IMMEDIATE;
-            break;
-        default:
-            token->type = T_LABEL;
-            break;
+            goto done;
     }
 
+    /* try conversion to integer */
+    token->type = T_LITERAL;
+    token->val = (int) strtol(tok_head, &tok_tail, 0);
+
+    if (tok_head == tok_tail)
+    {
+        /* not an integer, assume label reference */
+        token->type = T_LABEL_REF;
+    }
+
+done:
     return token;
 }
 
@@ -258,19 +293,6 @@ static int read_line(struct source_file *src)
     return src->line_len;
 }
 
-static int try_read_constant(const char *s, int base, int *out)
-{
-    char *end;
-
-    *out = strtol(s, &end, base);
-    if (s == end)
-    {
-        return 0;
-    }
-
-    return 1;
-}
-
 static void s_toupper(char *s)
 {
     while (*s != '\0')
@@ -284,8 +306,10 @@ static int is_delim(char c)
 {
     switch (c)
     {
-        case ',':
-        case ';':
+        case ',':   /* operand separator */
+        case ';':   /* comment specifier */
+        case ':':   /* label terminator */
+        case '"':   /* string specifier  */
         case ' ':
         case '\t':
         case '\r':
@@ -299,28 +323,6 @@ static int is_delim(char c)
 
 static int is_opcode(const char *tok)
 {
-    int result;
-
-    /* BR and friends */
-    if (strncmp(tok, "BR", 2) == 0)
-    {
-        result= 1;
-        tok += 2;
-
-        while (*tok != '\0')
-        {
-            if (*tok != 'N' && *tok != 'Z' && *tok != 'P')
-            {
-                result = 0;
-                break;
-            }
-            tok++;
-        }
-
-        return result;
-    }
-
-    /* all else */
     for (int i = 0; i < ARRLEN(OPCODES); i++)
     {
         if (strcmp(tok, OPCODES[i]) == 0)
