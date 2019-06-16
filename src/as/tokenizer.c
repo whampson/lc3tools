@@ -171,6 +171,50 @@ done:
     return token;
 }
 
+void print_tokens(const struct token *token_list)
+{
+    const struct token *prev;
+    const struct token *curr;
+
+    printf(" ln:pos\t\tlen\ttype\t\tval(dec)\tval(hex)\ttoken_str\n");
+
+    curr = token_list;
+    while (curr != NULL)
+    {
+        printf("% 3d:%d\t\t%d\t", curr->line, curr->pos, curr->len);
+        switch (curr->type)
+        {
+            case T_LABEL_REF:
+                printf("LABEL_REF\t");
+                break;
+            case T_LABEL_DEC:
+                printf("LABEL_DEC\t");
+                break;
+            case T_MNEMONIC:
+                printf("MNEMONIC\t");
+                break;
+            case T_MACRO:
+                printf("MACRO\t\t");
+                break;
+            case T_REGISTER:
+                printf("REGISTER\t");
+                break;
+            case T_LITERAL:
+                printf("LITERAL\t\t");
+                break;
+            case T_ASCII:
+                printf("ASCII\t\t");
+                break;
+        }
+
+        printf("%d\t\t%4X\t\t'%s'\n",
+            curr->val, curr->val & 0xFFFF, curr->cap_str);
+
+        prev = curr;
+        curr = curr->next;
+    }
+}
+
 static int read_line(struct source_file *src)
 {
     src->line_num++;

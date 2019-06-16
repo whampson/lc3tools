@@ -40,5 +40,6 @@ struct source_file
 };
 
 struct token * read_token(struct source_file *src);
+void print_tokens(const struct token *token_list);
 
 #endif /* __TOKENIZER_H */
