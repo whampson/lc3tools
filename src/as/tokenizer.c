@@ -6,7 +6,7 @@
 #include <lc3tools.h>
 #include <as/tokenizer.h>
 
-const char * const OPCODES[] =
+const char * const MNEMONICS[] =
 {
     "ADD",  "AND",  "BR",   "BRN",  "BRZ",  "BRP",  "BRNZ", "BRNP",
     "BRZP", "BRNZP","JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
@@ -16,7 +16,7 @@ const char * const OPCODES[] =
     /* "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP" */
 };
 
-const char * const PSEUDO_OPS[] =
+const char * const MACROS[] =
 {
     ".ASCII", ".BLKW", ".FILL", ".ORIGIN", /* ".SEGMENT" */
 };
@@ -25,7 +25,8 @@ static int read_line(struct source_file *src);
 static int try_read_constant(const char *s, int base, int *out);
 static void s_toupper(char *s);
 static int is_delim(char c);
-static int is_opcode(const char *tok);
+static int get_mnemonic_number(const char *tok_str);
+static int get_macro_number(const char *tok_str);
 
 
 struct token * read_token(struct source_file *src)
@@ -33,6 +34,7 @@ struct token * read_token(struct source_file *src)
     struct token *token; /* I feel alright mamma I'm not jokin' */
     char *tok_head;
     char *tok_tail;
+    char *ptr;
     int is_reading_tok;
     int is_reading_ascii;
 
@@ -134,26 +136,32 @@ read_chars:
     }
 
     /* determine token type */
-    if (is_opcode(token->cap_str))
+    if ((token->val = get_mnemonic_number(token->cap_str)) != -1)
     {
-        token->type = T_OPCODE;
+        token->type = T_MNEMONIC;
         goto done;
     }
-    switch (toupper(*tok_head))
+    else if ((token->val = get_macro_number(token->cap_str)) != -1)
     {
-        case '.':
-            token->type = T_PSEUDO_OP;
-            goto done;
-        case 'R':
+        token->type = T_MACRO;
+        goto done;
+    }
+    else if (toupper(*tok_head) == 'R')
+    {
+        ptr = tok_head + 1;
+        if (*ptr >= '0' && *ptr <= '7')
+        {
             token->type = T_REGISTER;
+            token->val = *ptr - '0';
             goto done;
+        }
     }
 
     /* try conversion to integer */
     token->type = T_LITERAL;
-    token->val = (int) strtol(tok_head, &tok_tail, 0);
+    token->val = (int) strtol(tok_head, &ptr, 0);
 
-    if (tok_head == tok_tail)
+    if (tok_head == ptr)
     {
         /* not an integer, assume label reference */
         token->type = T_LABEL_REF;
@@ -205,15 +213,28 @@ static int is_delim(char c)
     return 0;
 }
 
-static int is_opcode(const char *tok)
+static int get_mnemonic_number(const char *tok_str)
 {
-    for (int i = 0; i < ARRLEN(OPCODES); i++)
+    for (int i = 0; i < ARRLEN(MNEMONICS); i++)
     {
-        if (strcmp(tok, OPCODES[i]) == 0)
+        if (strcmp(tok_str, MNEMONICS[i]) == 0)
         {
-            return 1;
+            return i;
         }
     }
 
-    return 0;
+    return -1;
+}
+
+static int get_macro_number(const char *tok_str)
+{
+    for (int i = 0; i < ARRLEN(MACROS); i++)
+    {
+        if (strcmp(tok_str, MACROS[i]) == 0)
+        {
+            return i;
+        }
+    }
+
+    return -1;
 }
