@@ -29,6 +29,6 @@ BEGIN:  RET                 ; label w/ opcode, no operands
 
 DATA0:  .FILL 0xBEEF        ; pseudo-op w/ hex operand
 DATA1:  .FILL 1337          ; pseudo-op w/ dec operand
-HELLO:  .ASCII "Hello, world!", 13, 0
 
-FOO:
+HELLO:
+  .ASCII "Hello, world!", 13, 0 ; and strings!
