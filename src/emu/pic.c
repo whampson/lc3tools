@@ -23,8 +23,8 @@
 
 #include <string.h>
 
-#include <pic.h>
-#include <cpu.h>
+#include <emu/pic.h>
+#include <emu/cpu.h>
 
 #define SET_BIT(val,pos)    (val|=(1 <<(pos)))
 #define CLEAR_BIT(val,pos)  (val&=~(1 <<(pos)))

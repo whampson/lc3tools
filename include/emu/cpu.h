@@ -22,7 +22,7 @@
 #ifndef __CPU_H
 #define __CPU_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 /*
  * Reset the CPU.

@@ -23,11 +23,11 @@
 
 #include <stdio.h>
 
-#include <mem.h>
-#include <cpu.h>
-#include <kbd.h>
-#include <disp.h>
-#include <pic.h>
+#include <emu/mem.h>
+#include <emu/cpu.h>
+#include <emu/kbd.h>
+#include <emu/disp.h>
+#include <emu/pic.h>
 
 /*
  * Overwrite the bits of a value based on a write mask.

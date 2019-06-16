@@ -22,7 +22,7 @@
 #ifndef __DISP_H
 #define __DISP_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 /*
  * Display IRQ line (interrupt priority).

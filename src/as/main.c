@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <lc3as.h>
 #include <lc3tools.h>
+#include <as/lc3as.h>
 
 #define LINE_BUFFER_SIZE    512
 #define TOKEN_BUFFER_SIZE   64

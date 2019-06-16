@@ -22,7 +22,7 @@
 #ifndef __STATE_H
 #define __STATE_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 void state_00(void);
 void state_01(void);

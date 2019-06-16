@@ -24,7 +24,7 @@
 #ifndef __MEM_H
 #define __MEM_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 /*
  * Memory size in bytes.

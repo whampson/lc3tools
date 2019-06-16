@@ -22,7 +22,7 @@
 #ifndef __KBD_H
 #define __KBD_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 /*
  * Keyboard IRQ line (interrupt priority).

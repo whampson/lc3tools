@@ -24,7 +24,7 @@
 #ifndef __PIC_H
 #define __PIC_H
 
-#include <lc3.h>
+#include <emu/lc3.h>
 
 /*
  * Device interrupt service routine base vector.

@@ -24,8 +24,8 @@
 #include <string.h>
 
 #include <lc3tools.h>
-#include <kbd.h>
-#include <pic.h>
+#include <emu/kbd.h>
+#include <emu/pic.h>
 
 #define RD()        (kbd.kbsr & KBSR_RD)
 #define SET_RD(x)   (kbd.kbsr = (x)?(kbd.kbsr|KBSR_RD):(kbd.kbsr&~KBSR_RD))

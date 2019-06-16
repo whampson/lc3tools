@@ -23,13 +23,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <lc3.h>
-#include <cpu.h>
-#include <state.h>
-#include <mem.h>
-#include <kbd.h>
-#include <disp.h>
-#include <pic.h>
+#include <emu/lc3.h>
+#include <emu/cpu.h>
+#include <emu/state.h>
+#include <emu/mem.h>
+#include <emu/kbd.h>
+#include <emu/disp.h>
+#include <emu/pic.h>
 
 /******
  * TODO:

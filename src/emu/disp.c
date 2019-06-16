@@ -22,8 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <disp.h>
-#include <pic.h>
+#include <emu/disp.h>
+#include <emu/pic.h>
 
 #define RD()        (disp.dsr & DSR_RD)
 #define SET_RD(x)   (disp.dsr = (x)?(disp.dsr|DSR_RD):(disp.dsr&~DSR_RD))
