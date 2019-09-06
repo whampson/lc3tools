@@ -2,6 +2,7 @@
 #define __TOKENIZER_H
 
 #include <stdio.h>
+#include <limits.h>
 
 #define LINE_BUFFER_SIZE    1024
 
@@ -33,6 +34,7 @@ struct token
 struct source_file
 {
     FILE *file;
+    char path[BUFSIZ];
     char line[LINE_BUFFER_SIZE];
     int line_num;
     int line_pos;
