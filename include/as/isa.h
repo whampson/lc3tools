@@ -26,4 +26,6 @@ struct instruction_fmt
 
 extern const struct instruction_fmt INSTRUCTION_TABLE[];
 
+int get_instruction_table_size(void);
+
 #endif

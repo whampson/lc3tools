@@ -19,7 +19,7 @@ BEGIN:  RET                 ; label w/ opcode, no operands
         STW R3, R5, 2       ; register & register & address (literal)
         ADD R0, R1, R2      ; register & register & register
         ADD R3, R4, -2      ; register & register & immediate (dec)
-        ADD R5, R6, 1E      ; register & register & immediate (hex)
+        ADD R5, R6, 0x1E    ; register & register & immediate (hex)
 
         ; weird spacing
         ADD R0   , R5  ,  0xA   ; extra whitespace before ,

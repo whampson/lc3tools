@@ -1,3 +1,4 @@
+#include <lc3tools.h>
 #include <as/isa.h>
 
 const struct instruction_fmt INSTRUCTION_TABLE[] =
@@ -41,3 +42,8 @@ const struct instruction_fmt INSTRUCTION_TABLE[] =
  /* { "PUTSP",  OP_TRAP,0x024, 0,                                                               }, */
  /* { "HALT",   OP_TRAP,0x025, 0,                                                               }, */
 };
+
+int get_instruction_table_size(void)
+{
+    return ARRAYSIZE(INSTRUCTION_TABLE);
+}

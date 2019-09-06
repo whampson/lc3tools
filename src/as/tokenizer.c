@@ -5,16 +5,17 @@
 
 #include <lc3tools.h>
 #include <as/tokenizer.h>
+#include <as/isa.h>
 
-const char * const MNEMONICS[] =
-{
-    "ADD",  "AND",  "BR",   "BRN",  "BRZ",  "BRP",  "BRNZ", "BRNP",
-    "BRZP", "BRNZP","JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
-    "LEA",  "NOT",  "RET",  "RTI",  "LSHF", "RSHFL","RSHFA","STB",
-    "STW",  "STI",  "TRAP", "XOR",
+// const char * const MNEMONICS[] =
+// {
+//     "ADD",  "AND",  "BR",   "BRN",  "BRZ",  "BRP",  "BRNZ", "BRNP",
+//     "BRZP", "BRNZP","JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
+//     "LEA",  "NOT",  "RET",  "RTI",  "LSHF", "RSHFL","RSHFA","STB",
+//     "STW",  "STI",  "TRAP", "XOR",
 
-    /* "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP" */
-};
+//     /* "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP" */
+// };
 
 const char * const MACROS[] =
 {
@@ -259,9 +260,9 @@ static int is_delim(char c)
 
 static int get_mnemonic_number(const char *tok_str)
 {
-    for (int i = 0; i < ARRLEN(MNEMONICS); i++)
+    for (int i = 0; i < get_instruction_table_size(); i++)
     {
-        if (strcmp(tok_str, MNEMONICS[i]) == 0)
+        if (strcmp(tok_str, INSTRUCTION_TABLE[i].mnemonic) == 0)
         {
             return i;
         }
@@ -272,7 +273,7 @@ static int get_mnemonic_number(const char *tok_str)
 
 static int get_macro_number(const char *tok_str)
 {
-    for (int i = 0; i < ARRLEN(MACROS); i++)
+    for (int i = 0; i < ARRAYSIZE(MACROS); i++)
     {
         if (strcmp(tok_str, MACROS[i]) == 0)
         {
