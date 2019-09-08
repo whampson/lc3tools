@@ -10,8 +10,8 @@ enum token_type
 {
     T_LABEL_REF,    /* label reference */
     T_LABEL_DEC,    /* label declaration */
-    T_MNEMONIC,     /* instruction mnemonic */
-    T_MACRO,        /* macro mnemonic */
+    T_MNEMONIC_I,   /* instruction mnemonic */
+    T_MNEMONIC_M,   /* macro mnemonic */
     T_REGISTER,     /* general purpose register */
     T_LITERAL,      /* integer literal */
     T_ASCII         /* ASCII string literal */  /* TODO: escape chars */

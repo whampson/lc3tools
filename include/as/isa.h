@@ -5,15 +5,15 @@
 
 #include <emu/lc3.h>
 
-struct instruction_fmt
+struct instr_fmt
 {
     const char mnemonic[8];
     enum lc3op opcode;
     lc3word operand_base;
-    uint8_t operand_cnt;
+    uint8_t operand_count;
     struct operand_fmt
     {
-        enum operand_type
+        enum
         {
             O_REG,
             O_IMM,
@@ -24,8 +24,30 @@ struct instruction_fmt
     } operands[3];
 };
 
-extern const struct instruction_fmt INSTRUCTION_TABLE[];
+enum macro
+{
+    M_ASCII,
+    M_BLKW,
+    M_FILL,
+    M_ORIGIN
+};
 
-int get_instruction_table_size(void);
+struct macro_fmt
+{
+    const char mnemonic[8];
+    enum macro macro_id;
+    int8_t operand_count;
+    enum
+    {
+        MO_IMM,
+        MO_ASCII
+    } operand_type;
+};
+
+extern const struct instr_fmt INSTR_TABLE[];
+extern const struct macro_fmt MACRO_TABLE[];
+
+int get_instr_table_size(void);
+int get_macro_table_size(void);
 
 #endif

@@ -1,7 +1,7 @@
 #include <lc3tools.h>
 #include <as/isa.h>
 
-const struct instruction_fmt INSTRUCTION_TABLE[] =
+const struct instr_fmt INSTR_TABLE[] =
 {
     { "ADD",    OP_ADD, 0x000, 3, {{ O_REG, 0xE00, 9 },{ O_REG, 0x1C0, 6 },{ O_REG, 0x007, 0 }} },
     { "ADD",    OP_ADD, 0x020, 3, {{ O_REG, 0xE00, 9 },{ O_REG, 0x1C0, 6 },{ O_IMM, 0x01F, 0 }} },
@@ -43,7 +43,22 @@ const struct instruction_fmt INSTRUCTION_TABLE[] =
  /* { "HALT",   OP_TRAP,0x025, 0,                                                               }, */
 };
 
-int get_instruction_table_size(void)
+const struct macro_fmt MACRO_TABLE[] =
 {
-    return ARRAYSIZE(INSTRUCTION_TABLE);
+    { ".ASCII",     M_ASCII,    -1, MO_ASCII    },
+    { ".BLKW",      M_BLKW,     1,  MO_IMM,     },
+    { ".FILL",      M_FILL,     1,  MO_IMM,     },
+    { ".ORIGIN",    M_ORIGIN,   1,  MO_IMM,     },
+
+ /* { ".SEGMENT",   M_SEGMENT,  1,  MO_IMM      } */
+};
+
+int get_instr_table_size(void)
+{
+    return ARRAYSIZE(INSTR_TABLE);
+}
+
+int get_macro_table_size(void)
+{
+    return ARRAYSIZE(MACRO_TABLE);
 }

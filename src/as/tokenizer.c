@@ -7,21 +7,6 @@
 #include <as/tokenizer.h>
 #include <as/isa.h>
 
-// const char * const MNEMONICS[] =
-// {
-//     "ADD",  "AND",  "BR",   "BRN",  "BRZ",  "BRP",  "BRNZ", "BRNP",
-//     "BRZP", "BRNZP","JMP",  "JSR",  "JSRR", "LDB",  "LDW",  "LDI",
-//     "LEA",  "NOT",  "RET",  "RTI",  "LSHF", "RSHFL","RSHFA","STB",
-//     "STW",  "STI",  "TRAP", "XOR",
-
-//     /* "GETC", "HALT", "IN",   "OUT",  "PUTS", "PUTSP" */
-// };
-
-const char * const MACROS[] =
-{
-    ".ASCII", ".BLKW", ".FILL", ".ORIGIN", /* ".SEGMENT" */
-};
-
 static int read_line(struct source_file *src);
 static int try_read_constant(const char *s, int base, int *out);
 static void s_toupper(char *s);
@@ -139,12 +124,12 @@ read_chars:
     /* determine token type */
     if ((token->val = get_mnemonic_number(token->cap_str)) != -1)
     {
-        token->type = T_MNEMONIC;
+        token->type = T_MNEMONIC_I;
         goto done;
     }
     else if ((token->val = get_macro_number(token->cap_str)) != -1)
     {
-        token->type = T_MACRO;
+        token->type = T_MNEMONIC_M;
         goto done;
     }
     else if (toupper(*tok_head) == 'R')
@@ -191,11 +176,11 @@ void print_tokens(const struct token *token_list)
             case T_LABEL_DEC:
                 printf("LABEL_DEC\t");
                 break;
-            case T_MNEMONIC:
-                printf("MNEMONIC\t");
+            case T_MNEMONIC_I:
+                printf("MNEMONIC_I\t");
                 break;
-            case T_MACRO:
-                printf("MACRO\t\t");
+            case T_MNEMONIC_M:
+                printf("T_MNEMONIC_M\t");
                 break;
             case T_REGISTER:
                 printf("REGISTER\t");
@@ -260,9 +245,9 @@ static int is_delim(char c)
 
 static int get_mnemonic_number(const char *tok_str)
 {
-    for (int i = 0; i < get_instruction_table_size(); i++)
+    for (int i = 0; i < get_instr_table_size(); i++)
     {
-        if (strcmp(tok_str, INSTRUCTION_TABLE[i].mnemonic) == 0)
+        if (strcmp(tok_str, INSTR_TABLE[i].mnemonic) == 0)
         {
             return i;
         }
@@ -273,9 +258,9 @@ static int get_mnemonic_number(const char *tok_str)
 
 static int get_macro_number(const char *tok_str)
 {
-    for (int i = 0; i < ARRAYSIZE(MACROS); i++)
+    for (int i = 0; i < get_macro_table_size(); i++)
     {
-        if (strcmp(tok_str, MACROS[i]) == 0)
+        if (strcmp(tok_str, MACRO_TABLE[i].mnemonic) == 0)
         {
             return i;
         }
