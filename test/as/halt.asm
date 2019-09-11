@@ -1,4 +1,4 @@
-.ORIGIN 0x3000
+;.ORIGIN 0x3000
 
 MAIN:
     AND     R3, R3, R3
