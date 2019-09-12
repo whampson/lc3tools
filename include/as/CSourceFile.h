@@ -9,25 +9,26 @@ class CSourceFile
 public:
     CSourceFile(std::ifstream& infile, const char * path);
 
-    std::string path() const;
-    int line_num() const;       // line number of last character read
-    int line_pos() const;       // line postion of last character read
-    bool eof() const;           // end-of-file reached
+    std::string path() const;       // full path of file
+    int row() const;                // vert pos of last char read (1-indexed)
+    int col() const;                // horiz pos of last char read (1-indexed)
+    int marked_col() const;         // retrieve marked column number
+    std::string marked_str() const; // retrieve marked string up to curr pos
+    bool eof() const;               // has end-of-file been reached?
 
-    char next_char();           // read next character
-    void advance();             // advance to next line
-    void mark();                // mark last character position
-    std::string marked();       // retrieve marked string up to current position
+    void mark();                    // mark curr pos, resets with each new line
+    char peek();                    // read char at curr pos
+    char read();                    // read char at curr pos and advance
 
 private:
     std::ifstream& m_infile;
     std::string m_path;
     std::string m_line;
-    int m_line_num;
-    int m_line_pos;
+    int m_row;
+    int m_pos;                      // column; 0-indexed
     int m_mark;
-    bool m_eol;
-    bool m_eof;
+
+    void next_line();
 };
 
 #endif  /* __CSOURCEFILE_H */

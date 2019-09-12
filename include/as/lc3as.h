@@ -22,6 +22,6 @@
 
 void error(const char *fmt, ...);
 void error(const CSourceFile& src, const char *fmt, ...);
-void error(const CSourceFile& src, const Token& tok, const char *fmt, ...);
+void error(const CSourceFile& src, int row, int col, const char *fmt, ...);
 
 #endif  /* __LC3AS_H */

@@ -38,7 +38,7 @@
  */
 #define DEBUG 1
 
-#define TEST_DIR    "../test"
+#define TEST_DIR        "../test"
 
 /*
  * File separator character.
@@ -52,7 +52,7 @@
 /*
  * Useful macros.
  */
-#define ARRLEN(a)   (sizeof(a)/sizeof(a[0]))
+#define ARRAYSIZE(a)    (sizeof(a)/sizeof(a[0]))
 
 
 /* ===== Functions defined in src/lib/path.c ===== */
